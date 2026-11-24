@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>基础工作台 | 小说创作工作台</title>
+<link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="/static/ui/skin-panel.css">
+<link rel="stylesheet" href="/static/ui/app-compat.css">
+<script defer src="/static/js/skin-switcher.js"></script>
+<style>
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #fff;
+  --c-primary: #4f46e5;
+  --c-primary-hover: #4338ca;
+  --c-text: #1e293b;
+  --c-muted: #64748b;
+  --c-border: #e2e8f0;
+  --c-card-shadow: 0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --c-card-shadow-hover: 0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+  --radius: 10px;
+  --sidebar-w: 260px;
+}
+body[data-skin-page="base"] {
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --teal: #0f766e;
+  --teal-soft: #ccfbf1;
+  --ink: #1e293b;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --surface-tint: #f1f5f9;
+  --canvas: #f4f6f9;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --success: #15803d;
+  --radius-6: 8px;
+  --radius-8: 10px;
+  --radius-full: 999px;
+  --shadow-lg: 0 20px 60px rgba(15, 23, 42, .18);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;
+  background:var(--c-bg);color:var(--c-text);min-height:100vh;
+  display:flex;flex-direction:column;line-height:1.6;
+}
+a{color:var(--c-primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── header ── */
+header{
+  background:var(--c-surface);border-bottom:1px solid var(--c-border);
+  padding:0 24px;height:58px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+}
+header .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+header .logo span{color:var(--c-primary)}
+header nav{display:flex;gap:4px}
+header nav a{
+  padding:8px 14px;border-radius:8px;font-size:14px;color:var(--c-muted);
+  transition:.15s;cursor:pointer;
+}
+header nav a:hover,header nav a.active{background:#f1f5f9;color:var(--c-text);text-decoration:none}
+
+/* ── main container ── */
+main{flex:1;padding:32px 24px;max-width:1200px;margin:0 auto;width:100%}
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── homepage cards ── */
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px}
+.home-card{
+  background:var(--c-surface);border-radius:var(--radius);box-shadow:var(--c-card-shadow);
+  padding:48px 36px;cursor:pointer;transition:.2s;border:1px solid var(--c-border);
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;
+}
+.home-card:hover{box-shadow:var(--c-card-shadow-hover);transform:translateY(-2px)}
+.home-card .icon{font-size:48px}
+.home-card h3{font-size:20px}
+.home-card p{color:var(--c-muted);font-size:14px;max-width:280px}
+
+/* ── create form ── */
+.form-card{
+  background:var(--c-surface);border-radius:var(--radius);box-shadow:var(--c-card-shadow);
+  max-width:640px;margin:24px auto;padding:36px;
+}
+.form-card label{display:block;font-size:14px;font-weight:600;margin-bottom:6px;margin-top:20px}
+.form-card label:first-child{margin-top:0}
+.form-card input,.form-card textarea{
+  width:100%;padding:12px 14px;border:1px solid var(--c-border);border-radius:8px;
+  font-size:15px;font-family:inherit;transition:.15s;outline:none;
+}
+.form-card input:focus,.form-card textarea:focus{border-color:var(--c-primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.form-card textarea{min-height:120px;resize:vertical}
+.form-card .hint{font-size:12px;color:var(--c-muted);margin-top:4px}
+.form-actions{display:flex;gap:12px;margin-top:28px}
+.btn{
+  padding:10px 24px;border-radius:8px;border:none;font-size:15px;font-weight:600;
+  cursor:pointer;transition:.15s;font-family:inherit;
+}
+.btn-primary{background:var(--c-primary);color:#fff}
+.btn-primary:hover{background:var(--c-primary-hover)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{background:#f1f5f9;color:var(--c-text)}
+.btn-secondary:hover{background:#e2e8f0}
+
+/* ── library grid ── */
+.library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:24px}
+.novel-card{
+  background:var(--c-surface);border-radius:var(--radius);box-shadow:var(--c-card-shadow);
+  padding:24px;cursor:pointer;transition:.2s;border:1px solid var(--c-border);
+  display:flex;flex-direction:column;gap:8px;
+}
+.novel-card:hover{box-shadow:var(--c-card-shadow-hover);transform:translateY(-2px)}
+.novel-card h4{font-size:16px}
+.novel-card .meta{font-size:12px;color:var(--c-muted)}
+.novel-card .preview{font-size:13px;color:var(--c-muted);flex:1}
+.novel-card .delete-btn{
+  align-self:flex-end;background:none;border:none;color:#ef4444;
+  cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;
+}
+.novel-card .delete-btn:hover{background:#fef2f2}
+
+/* ── novel detail ── */
+.detail-layout{display:flex;gap:0;margin-top:16px;min-height:60vh}
+.detail-sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--c-surface);border-radius:var(--radius) 0 0 var(--radius);
+  border:1px solid var(--c-border);overflow:hidden;
+}
+.detail-sidebar .tab{
+  padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--c-border);
+  font-size:14px;transition:.1s;display:flex;align-items:center;gap:10px;
+}
+.detail-sidebar .tab:last-child{border-bottom:none}
+.detail-sidebar .tab:hover{background:#f8fafc}
+.detail-sidebar .tab.active{background:#eef2ff;color:var(--c-primary);font-weight:600}
+.detail-main{
+  flex:1;background:var(--c-surface);
+  border:1px solid var(--c-border);border-left:none;
+  border-radius:0 var(--radius) var(--radius) 0;padding:28px 32px;
+  overflow-y:auto;max-height:75vh;
+}
+.detail-main h2{font-size:20px;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--c-border)}
+.detail-main .field{margin-bottom:12px}
+.detail-main .field-label{font-size:12px;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.detail-main .field-value{font-size:14px;margin-top:2px}
+.char-item,.chapter-item{
+  background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:12px;border:1px solid var(--c-border)
+}
+.char-item h4{font-size:15px;margin-bottom:4px}
+.char-item .tag{
+  display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;
+  background:#eef2ff;color:var(--c-primary);margin-right:6px;
+}
+.chapter-item h4{font-size:14px;margin-bottom:4px}
+.chapter-item .meta{font-size:12px;color:var(--c-muted)}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--c-muted)}
+.empty-state .icon{font-size:56px;margin-bottom:16px}
+.empty-state h3{color:var(--c-text);margin-bottom:8px}
+
+@media(max-width:768px){
+  .home-grid{grid-template-columns:1fr}
+  .detail-layout{flex-direction:column}
+  .detail-sidebar{width:100%;border-radius:var(--radius);border-bottom:none;display:flex;overflow-x:auto}
+  .detail-sidebar .tab{border-bottom:none;border-right:1px solid var(--c-border);white-space:nowrap}
+  .detail-main{border-left:1px solid var(--c-border);border-radius:0 0 var(--radius) var(--radius)}
+  .detail-sidebar .tab:last-child{border-right:none}
+}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;align-items:flex-start;justify-content:center;padding-top:8vh}
+.modal-overlay.active{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-box h3{font-size:18px;margin-bottom:20px}
+.modal-box label{display:block;font-size:13px;font-weight:600;margin-top:16px;margin-bottom:4px}
+.modal-box input,.modal-box select{width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.modal-box input:focus,.modal-box select:focus{border-color:var(--c-primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.modal-box .hint{font-size:12px;color:var(--c-muted);margin-top:4px}
+
+.genre-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;margin-bottom:20px}
+.genre-opt{
+  padding:8px 16px;border-radius:8px;border:1px solid var(--c-border);
+  cursor:pointer;font-size:13px;transition:.15s;background:var(--c-surface);
+  font-family:inherit;user-select:none;
+}
+.genre-opt:hover{border-color:var(--c-primary);color:var(--c-primary)}
+.genre-opt.active{background:var(--c-primary);color:#fff;border-color:var(--c-primary)}
+#genre-desc{font-size:12px;color:var(--c-muted);margin:4px 0 0 0;line-height:1.5}
+</style>
+</head>
+<body data-skin-page="base">
+
+<header>
+  <div class="logo"><span>LangGraph</span> 小说仓库</div>
+  <nav>
+    <a onclick="navigate('home')" id="nav-home">首页</a>
+    <a onclick="navigate('library')" id="nav-library">小说库</a>
+    <a onclick="navigate('import')" id="nav-import">导入TXT</a>
+    <a onclick="navigate('trash')" id="nav-trash">回收站</a>
+  <a onclick="showSettings()" id="nav-settings" style="font-size:18px;cursor:pointer;padding:4px 8px" title="&#35774;&#32622;">&#9881;</a></nav>
+</header>
+
+<main id="app">
+
+<!-- 首页 -->
+<div class="page active" id="page-home">
+  <h1 style="font-size:28px;text-align:center;margin-top:20px">小说创作工作台</h1>
+  <p style="text-align:center;color:var(--c-muted);margin-top:8px">使用 LangGraph 流水线，从创意到结构化设定，一步到位</p>
+  <div class="home-grid">
+    <div class="home-card" onclick="navigate('create')">
+      <div class="icon">&#10024;</div>
+      <h3>创立新小说</h3>
+      <p>输入书名和创意，AI 自动生成世界观、角色卡和分章大纲</p>
+    </div>
+    <div class="home-card" onclick="navigate('library')">
+      <div class="icon">&#128218;</div>
+      <h3>小说仓库</h3>
+      <p>查看已有小说，浏览设定、角色和大纲</p>
+    </div>
+    <div class="home-card" onclick="navigate('import')">
+      <div class="icon">&#128229;</div>
+      <h3>导入 TXT 小说</h3>
+      <p>把已下载的整本小说导回系统，自动拆章并生成可编辑大纲</p>
+    </div>
+    <div class="home-card" onclick="navigate('trash')">
+      <div class="icon">&#9851;</div>
+      <h3>小说回收站</h3>
+      <p>误删后可以在这里恢复，确认无用后再永久删除</p>
+    </div>
+  </div>
+</div>
+
+<!-- 创建页 -->
+<div class="page" id="page-create">
+  <h1 style="font-size:24px">创立新小说</h1>
+  <div class="form-card">
+    <label>小说标题</label>
+    <input id="novel-title" placeholder="给小说取个名字" maxlength="60">
+    <label>一句话创意</label>
+    <textarea id="novel-idea" placeholder="描述小说的核心创意，比如：&#10;一个普通高中生意外绑定"诸天万界商城系统"，能用积分兑换漫威超能力，但每次兑换都会引来异次元怪物追杀。"></textarea>
+    <div class="hint">创意越具体，生成的设定越精准。建议包含主角、核心冲突和独特设定。</div>
+    <label>小说流派</label>
+    <div class="genre-group">
+      <div class="genre-opt active" data-genre="urban" onclick="selectGenre(this)">都市类</div>
+      <div class="genre-opt" data-genre="wuxia" onclick="selectGenre(this)">武侠类</div>
+      <div class="genre-opt" data-genre="xianxia" onclick="selectGenre(this)">仙侠类</div>
+      <div class="genre-opt" data-genre="mystery" onclick="selectGenre(this)">推理/悬疑</div>
+      <div class="genre-opt" data-genre="romance" onclick="selectGenre(this)">青春恋爱</div>
+      <div class="genre-opt" data-genre="fanfic" onclick="selectGenre(this)">同人文</div>
+    </div>
+    <div id="genre-desc">现代都市为舞台，涵盖异能、系统、重生、职场、校园等子类。</div>
+    <div id="fanfic-block" style="display:none;margin-top:16px">
+      <label>原作名称</label>
+      <input id="fanfic-title" placeholder="例如：某部小说 / 某部动漫" maxlength="80">
+      <label style="margin-top:10px">原作设定摘要</label>
+      <textarea id="fanfic-summary" rows="5" placeholder="请写你希望沿用的原作世界观摘要、势力关系、时代背景、关键规则。不要粘贴大段原文，建议自己概括。"></textarea>
+      <div class="hint">同人文会根据你提供的摘要重建原作世界，不会直接复制原作正文或受版权保护的完整设定。</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btn-create" onclick="createNovel()">开始生成</button>
+      <button class="btn btn-secondary" onclick="navigate('home')">取消</button>
+    </div>
+    <div id="create-status" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- 导入 TXT -->
+<div class="page" id="page-import">
+  <h1 style="font-size:24px">导入 TXT 小说</h1>
+  <div class="form-card">
+    <label>小说标题</label>
+    <input id="import-title" placeholder="留空则使用“导入的小说”" maxlength="60">
+    <label>选择 TXT 文件</label>
+    <input type="file" id="import-file" accept=".txt,text/plain" onchange="readImportFile()" style="background:#fff">
+    <div class="hint">支持常见章节标题，如“第1章 标题”“第一章 标题”“【第1章 标题】”。</div>
+    <label>或直接粘贴全文</label>
+    <textarea id="import-text" rows="12" placeholder="把下载的整本小说 TXT 内容粘贴到这里"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-top:14px">
+      <input type="checkbox" id="import-ai-reconstruct" checked style="width:auto"> 导入后用 AI 反向补全世界观、角色卡、大纲和剧情圣经
+    </label>
+    <div class="hint">会先保留完整正文，再根据正文样本重建小说档案；没有 API Key 时会自动退回基础导入。</div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btn-import" onclick="importTxtNovel()">拆章并导入</button>
+      <button class="btn btn-secondary" onclick="navigate('library')">取消</button>
+    </div>
+    <div id="import-status" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- 小说库 -->
+<div class="page" id="page-library">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h1 style="font-size:24px">小说仓库</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="navigate('import')">导入 TXT</button>
+      <button class="btn btn-primary" onclick="navigate('create')">+ 新小说</button>
+    </div>
+  </div>
+  <div id="library-grid" class="library-grid">
+    <div class="empty-state">
+      <div class="icon">&#128214;</div>
+      <h3>还没有小说</h3>
+      <p>点击上方「新小说」开始创作</p>
+    </div>
+  </div>
+</div>
+
+<!-- 回收站 -->
+<div class="page" id="page-trash">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-size:24px">小说回收站</h1>
+      <p style="color:var(--c-muted);font-size:13px;margin-top:4px">删除的小说会先保存在这里，恢复后回到小说库。</p>
+    </div>
+    <button class="btn btn-secondary" onclick="navigate('library')">返回小说库</button>
+  </div>
+  <div id="trash-grid" class="library-grid">
+    <div class="empty-state">
+      <div class="icon">&#9851;</div>
+      <h3>回收站为空</h3>
+      <p>删除小说后会出现在这里</p>
+    </div>
+  </div>
+</div>
+
+<!-- 小说详情 -->
+<div class="page" id="page-novel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div>
+      <a href="javascript:void(0)" onclick="navigate('library')" style="font-size:14px">&larr; 返回仓库</a>
+      <h1 id="novel-title-display" style="font-size:22px;margin-top:4px"></h1>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" id="btn-delete" onclick="deleteNovel()" style="color:#ef4444">删除</button>
+    </div>
+    <div id="edit-bar" style="display:none;gap:8px">
+      <button class="btn btn-primary" onclick="saveEdit()" style="font-size:13px">✔ 保存</button>
+      <button class="btn btn-secondary" onclick="cancelEdit()" style="font-size:13px">✕ 取消</button>
+    </div>
+    <button onclick="downloadFullNovel()" id="btn-download" style="font-size:11px;padding:3px 8px;border:1px solid var(--c-border);border-radius:5px;background:none;cursor:pointer;color:var(--c-primary)">下载 TXT</button>
+      <button class="btn btn-primary" onclick="showAssistUpdate()" id="btn-ai-update" style="font-size:13px">AI 辅助更新</button>
+      <button class="btn btn-secondary" onclick="enterEdit()" id="btn-edit" style="font-size:13px">✎ 编辑</button>
+    </div>
+  <div class="detail-layout">
+    <div class="detail-sidebar" id="detail-tabs">
+      <div class="tab active" data-tab="world" onclick="switchTab('world')">
+        &#127758; 世界观
+      </div>
+      <div class="tab" data-tab="characters" onclick="switchTab('characters')">
+        &#128100; 角色卡
+      </div>
+      <div class="tab" data-tab="outline" onclick="switchTab('outline')">
+        &#128221; 大纲
+      </div>
+      <div class="tab" data-tab="bible" onclick="switchTab('bible')">
+        &#128220; 剧情圣经
+      </div>
+      <div class="tab" data-tab="chapters" onclick="switchTab('chapters')">
+        &#128214; 章节
+      </div>
+      <div class="tab" data-tab="audit" onclick="switchTab('audit')">
+        &#128269; 审稿
+      </div>
+    </div>
+    <div class="detail-main" id="detail-content">
+      <!-- 由 JS 填充 -->
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="settings-overlay">
+  <div class="modal-box">
+    <h3>&#9881; &#35774;&#32622;</h3>
+    <label>API &#25552;&#20379;&#21830;</label>
+    <select id="s-provider" onchange="onProviderChange()">
+      <option value="openai">OpenAI</option>
+      <option value="deepseek">DeepSeek</option>
+      <option value="custom">&#33258;&#23450;&#20041;</option>
+    </select>
+    <label>API Key</label>
+    <input type="password" id="s-key" placeholder="sk-..." autocomplete="off">
+    <div class="hint">&#20174; API &#25552;&#20379;&#21830;&#24179;&#21488;&#33719;&#21462;</div>
+    <label>&#27169;&#22411;</label>
+    <input id="s-model" placeholder="gpt-4o-mini">
+    <div class="hint">&#22914; gpt-4o-mini&#12289;deepseek-chat</div>
+    <label>API Base URL</label>
+    <input id="s-base-url" placeholder="https://api.openai.com/v1">
+    <div class="hint">&#20351;&#29992;&#20195;&#29702;&#25110;&#33258;&#23450;&#20041;&#31471;&#28857;&#26102;&#20462;&#25913;</div>
+    <div class="form-actions" style="margin-top:24px">
+      <button class="btn btn-primary" onclick="saveSettings()">&#10003; &#20445;&#23384;</button>
+      <button class="btn btn-secondary" onclick="hideSettings()">&#21462;&#28040;</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="assist-overlay">
+  <div class="modal-box">
+    <h3>AI 辅助更新</h3>
+    <label>更新范围</label>
+    <select id="assist-target">
+      <option value="all">全部核心设定</option>
+      <option value="world">世界观</option>
+      <option value="characters">修改角色卡</option>
+      <option value="characters_new">新增角色卡</option>
+      <option value="outline">修改篇章 / 节奏 / 章节大纲</option>
+      <option value="volume_new">新增篇章大纲</option>
+      <option value="volume_delete">删除篇章大纲</option>
+      <option value="outline_new">新增章节大纲</option>
+      <option value="bible">剧情圣经</option>
+    </select>
+    <label>修改方向</label>
+    <textarea id="assist-instructions" rows="5" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical" placeholder="例如：新增一个隐藏反派角色卡；新建第6-10章章节大纲；把世界观改得更悬疑；重做前10章节奏，增加反派压迫感。"></textarea>
+    <div class="hint">写“新增 / 新建 / 添加”时，AI 会尽量追加新角色卡或新大纲；写“重做 / 替换”时，AI 会更倾向于覆盖对应部分。</div>
+    <div id="assist-status" style="font-size:13px;color:var(--c-muted);margin-top:12px"></div>
+    <div class="form-actions" style="margin-top:24px">
+      <button class="btn btn-primary" onclick="submitAssistUpdate()" id="assist-submit">开始更新</button>
+      <button class="btn btn-secondary" onclick="hideAssistUpdate()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="character-preview-overlay">
+  <div class="modal-box" style="max-width:760px">
+    <h3>角色卡修改预览</h3>
+    <div class="hint" style="margin-bottom:14px">保存前先看一眼差异，确认后才会真正写入。</div>
+    <div id="character-preview-body" style="max-height:58vh;overflow:auto;border:1px solid var(--c-border);border-radius:10px;padding:14px;background:var(--c-surface)"></div>
+    <div class="form-actions" style="margin-top:20px">
+      <button class="btn btn-primary" onclick="confirmCharacterPreview()">确认保存</button>
+      <button class="btn btn-secondary" onclick="hideCharacterPreview()">取消</button>
+    </div>
+  </div>
+</div>
+</main>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

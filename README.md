@@ -135,7 +135,7 @@
 - LangChain OpenAI
 - OpenAI-compatible API
 - HTML / CSS / JavaScript
-- JSON 文件存储
+- SQLite 持久化（WAL 模式）
 
 ## 项目结构
 
@@ -148,7 +148,9 @@
 ├── app.py                   # Streamlit 早期演示入口
 ├── requirements.txt         # Python 依赖
 ├── Procfile                 # 部署启动命令
-├── novels/                  # 本地小说数据，默认不提交
+├── storage.py               # SQLite 小说与后台任务存储层
+├── data/                    # SQLite 数据库，默认不提交
+├── novels/                  # 旧版 JSON 数据，启动时自动迁移
 ├── deleted_novels/          # 回收站数据，默认不提交
 ├── outputs/                 # 导出和运行输出，默认不提交
 └── _scratch/                # 开发临时脚本，默认不提交
@@ -174,6 +176,8 @@ NOVEL_LLM_MODEL=gpt-4o-mini
 OPENAI_API_BASE=
 OPENAI_BASE_URL=
 NOVEL_MOCK=0
+NOVEL_DB_PATH=data/novels.db
+NOVEL_MAX_REQUEST_BYTES=8000000
 ```
 
 说明：
@@ -182,6 +186,13 @@ NOVEL_MOCK=0
 - `NOVEL_LLM_MODEL`：模型名称，默认可使用 `gpt-4o-mini`
 - `OPENAI_API_BASE` / `OPENAI_BASE_URL`：OpenAI 兼容接口地址，可用于第三方模型服务
 - `NOVEL_MOCK=1`：开启模拟模式，不调用真实模型
+- `NOVEL_CORS_ORIGINS`：允许跨域访问的 Origin，多个地址用逗号分隔
+- `NOVEL_DB_PATH`：SQLite 数据库路径，默认 `data/novels.db`
+- `NOVEL_MAX_REQUEST_BYTES`：HTTP 请求体上限，默认 8 MB
+
+浏览器设置页填写的 Key、模型和接口地址只覆盖当前请求；没有填写时会使用服务端 `.env` 配置。请求级配置不会修改进程环境变量。
+
+小说和后台任务会写入 SQLite。首次启动时，`novels/` 下合法的 8 位十六进制 ID JSON 文件会自动迁移到数据库；原文件会保留。生成任务在服务重启后会自动重新排队，取消状态也会保留。
 
 请不要把真实 `.env` 文件提交到 GitHub。
 
@@ -195,6 +206,15 @@ uvicorn web_app:app --host 0.0.0.0 --port 8000
 
 ```text
 http://127.0.0.1:8000/
+```
+
+部署到容器或云平台时，必须把 `data/` 挂载到持久卷，否则重新部署后数据库会丢失。SQLite 模式应保持单实例写入。
+
+## 测试
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
 ```
 
 ## 内网穿透演示
@@ -215,6 +235,7 @@ cloudflared tunnel --url http://localhost:8000
 - `.venv/`
 - `novels/`
 - `deleted_novels/`
+- `data/`
 - `outputs/`
 - `_scratch/`
 - `__pycache__/`

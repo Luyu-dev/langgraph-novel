@@ -10,7 +10,11 @@ import re
 import sys
 import difflib
 import copy
-from typing import TypedDict, List, Literal
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import Iterator, TypedDict, List, Literal
 from pathlib import Path
 
 from langgraph.graph import StateGraph, START, END
@@ -34,29 +38,109 @@ if _env.exists():
             os.environ[_k] = _v
 
 # ═══════════════════════════════════════════════
-# 0b. flags + llm
+# 0b. runtime settings + llm
 # ═══════════════════════════════════════════════
 
-MOCK = os.getenv("NOVEL_MOCK", "0") == "1" or "--mock" in sys.argv
 SHOW_GRAPH = "--show-graph" in sys.argv or "-g" in sys.argv
 EXPORT_GRAPH = "--export-graph" in sys.argv
 
-if MOCK:
-    llm = None
-else:
-    _key = os.getenv("OPENAI_API_KEY", "")
-    _base = os.getenv("OPENAI_API_BASE", os.getenv("OPENAI_BASE_URL", ""))
-    if _key and not _key.startswith("sk-your"):
-        kwargs = dict(
-            model=os.getenv("NOVEL_LLM_MODEL", "gpt-4o-mini"),
-            temperature=0.7,
-            api_key=_key,
-        )
-        if _base:
-            kwargs["base_url"] = _base
-        llm = ChatOpenAI(**kwargs)
-    else:
-        llm = None
+
+@dataclass(frozen=True)
+class LLMSettings:
+    api_key: str = field(default="", repr=False)
+    model: str = "gpt-4o-mini"
+    base_url: str = ""
+    mock: bool = False
+
+
+_runtime_settings: ContextVar[LLMSettings | None] = ContextVar(
+    "novel_llm_settings", default=None
+)
+
+
+def resolve_llm_settings(
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+    mock: bool | None = None,
+) -> LLMSettings:
+    """Resolve request overrides on top of process defaults without mutating env."""
+    env_mock = os.getenv("NOVEL_MOCK", "0") == "1" or "--mock" in sys.argv
+    resolved_key = (
+        os.getenv("OPENAI_API_KEY", "").strip()
+        if api_key is None
+        else api_key.strip()
+    )
+    resolved_model = (
+        os.getenv("NOVEL_LLM_MODEL", "gpt-4o-mini").strip()
+        if model is None
+        else model.strip()
+    ) or "gpt-4o-mini"
+    resolved_base = (
+        os.getenv(
+            "OPENAI_API_BASE", os.getenv("OPENAI_BASE_URL", "")
+        ).strip()
+        if base_url is None
+        else base_url.strip()
+    )
+    resolved_mock = env_mock if mock is None else bool(mock)
+    if not resolved_key or resolved_key.startswith("sk-your"):
+        resolved_mock = True
+    return LLMSettings(
+        api_key=resolved_key,
+        model=resolved_model,
+        base_url=resolved_base,
+        mock=resolved_mock,
+    )
+
+
+def current_llm_settings() -> LLMSettings:
+    return _runtime_settings.get() or resolve_llm_settings()
+
+
+@contextmanager
+def use_llm_settings(settings: LLMSettings) -> Iterator[LLMSettings]:
+    token = _runtime_settings.set(settings)
+    try:
+        yield settings
+    finally:
+        _runtime_settings.reset(token)
+
+
+def _is_mock() -> bool:
+    return current_llm_settings().mock
+
+
+@lru_cache(maxsize=16)
+def _build_llm(api_key: str, model: str, base_url: str) -> ChatOpenAI:
+    kwargs = {
+        "model": model,
+        "temperature": 0.7,
+        "api_key": api_key,
+    }
+    if base_url:
+        kwargs["base_url"] = base_url
+    return ChatOpenAI(**kwargs)
+
+
+def _get_llm() -> ChatOpenAI | None:
+    settings = current_llm_settings()
+    if settings.mock or not settings.api_key:
+        return None
+    return _build_llm(settings.api_key, settings.model, settings.base_url)
+
+
+def _invoke_llm(prompt: str):
+    client = _get_llm()
+    if client is None:
+        raise RuntimeError("LLM is not configured")
+    return client.invoke([SystemMessage(content=prompt)])
+
+
+# Backwards-compatible module attributes used by older scripts.
+MOCK = current_llm_settings().mock
+llm = _get_llm()
 # ═══════════════════════════════════════════════
 # 0c. 小说流派定义与流派引导 prompt
 # ═══════════════════════════════════════════════
@@ -203,7 +287,7 @@ class NovelState(TypedDict):
 
 def generate_outline(state: NovelState) -> dict:
     """Agent 角色：创意架构师 → 输出结构化世界观 + 角色卡 + 篇章/章节大纲"""
-    if MOCK:
+    if _is_mock():
         return _mock_outline()
 
     genre_key = state.get("genre", "")
@@ -301,7 +385,7 @@ def generate_outline(state: NovelState) -> dict:
         "- 5 章构成一个完整的故事弧线（起→承→转→合→高潮）\n"
         "- 只输出 JSON，不要任何额外文字"
     )
-    response = llm.invoke([SystemMessage(content=prompt)])
+    response = _invoke_llm(prompt)
     content = _parse_json(response.content)
     bundle = _safe_outline_bundle(content, _mock_outline())
     if not bundle.get("pacing_outline"):
@@ -545,7 +629,7 @@ def _event_blacklist_entry(event: dict) -> dict:
 def assist_update_novel(novel: dict, target: str, instructions: str) -> dict:
     """Agent 角色：设定协同编辑 → 按用户方向重写指定设定模块。"""
     target = target if target in {"all", "world", "characters", "characters_new", "volume_new", "volume_delete", "outline", "outline_new", "bible"} else "all"
-    if MOCK or llm is None or novel.get("__force_mock"):
+    if _is_mock() or _get_llm() is None or novel.get("__force_mock"):
         return _mock_assist_update(novel, target, instructions)
 
     target_desc = {
@@ -594,7 +678,7 @@ def assist_update_novel(novel: dict, target: str, instructions: str) -> dict:
         '  "story_bible": {}\n'
         "}\n"
     )
-    content = _parse_json(llm.invoke([SystemMessage(content=prompt)]).content)
+    content = _parse_json(_invoke_llm(prompt).content)
     if not isinstance(content, dict):
         raise ValueError("AI 返回的更新结果不是 JSON 对象")
 
@@ -1192,7 +1276,7 @@ def _heuristic_audit_novel(novel: dict) -> dict:
 def audit_novel(novel: dict, focus: str = "all") -> dict:
     """Agent 角色：整本小说审稿编辑 → 扫描章节与设定/大纲/剧情圣经的一致性。"""
     fallback = _heuristic_audit_novel(novel)
-    if MOCK or llm is None or novel.get("__force_mock"):
+    if _is_mock() or _get_llm() is None or novel.get("__force_mock"):
         return fallback
 
     audit_input = {
@@ -1228,7 +1312,7 @@ def audit_novel(novel: dict, focus: str = "all") -> dict:
         "}\n"
     )
     try:
-        content = _parse_json(llm.invoke([SystemMessage(content=prompt)]).content)
+        content = _parse_json(_invoke_llm(prompt).content)
     except Exception:
         return fallback
     if not isinstance(content, dict):
@@ -1269,7 +1353,7 @@ def update_outline_from_audit(novel: dict) -> dict:
     if not report or not report.get("issues"):
         return {}
 
-    if MOCK or llm is None or novel.get("__force_mock"):
+    if _is_mock() or _get_llm() is None or novel.get("__force_mock"):
         return _fallback_outline_update_from_audit(novel, report)
 
     payload = {
@@ -1303,7 +1387,7 @@ def update_outline_from_audit(novel: dict) -> dict:
         "}\n"
     )
     try:
-        content = _parse_json(llm.invoke([SystemMessage(content=prompt)]).content)
+        content = _parse_json(_invoke_llm(prompt).content)
     except Exception:
         return _fallback_outline_update_from_audit(novel, report)
     if not isinstance(content, dict):
@@ -1466,7 +1550,7 @@ def _fallback_import_reconstruction(novel: dict, chapters_raw: list) -> dict:
 
 def reconstruct_imported_novel(novel: dict, chapters_raw: list) -> dict:
     """Agent 角色：导入档案员 → 从已有正文反向重建小说设定档案。"""
-    if MOCK or llm is None:
+    if _is_mock() or _get_llm() is None:
         return _fallback_import_reconstruction(novel, chapters_raw)
 
     chapter_brief = _chapter_import_brief(chapters_raw)
@@ -1510,7 +1594,7 @@ def reconstruct_imported_novel(novel: dict, chapters_raw: list) -> dict:
         "- 剧情圣经要记录已有事实、人物状态、伏笔和地点状态，便于后续继续写。\n"
         "- 如果导入章节很多，仍要为每章输出一条章节大纲，可根据标题和样本提炼简洁摘要。\n"
     )
-    content = _parse_json(llm.invoke([SystemMessage(content=prompt)]).content)
+    content = _parse_json(_invoke_llm(prompt).content)
     fallback = _fallback_import_reconstruction(novel, chapters_raw)
     bundle = _safe_outline_bundle(content, fallback)
     if len(bundle.get("outline", [])) != len(chapters_raw or []):
@@ -1541,7 +1625,7 @@ def expand_chapter_outlines(state, count=5):
         next_num = vol_start
     beat = _current_pacing_beat(state, next_num)
 
-    if globals().get("MOCK", False) or llm is None:
+    if _is_mock() or _get_llm() is None:
         return _mock_expand(next_num, count, vol)
 
     recent = existing[-3:]
@@ -1596,7 +1680,7 @@ def expand_chapter_outlines(state, count=5):
         "  ]\n"
         "}\n"
     )
-    response = llm.invoke([SystemMessage(content=prompt)])
+    response = _invoke_llm(prompt)
     content = _parse_json(response.content)
     items = content.get("outline", content if isinstance(content, list) else [])
     return _normalize_chapter_outlines(items, next_num)
@@ -1606,7 +1690,7 @@ def write_chapter(state: NovelState) -> dict:
     idx = state["current_chapter_idx"]
     chapter = state["outline"][idx]
 
-    if MOCK:
+    if _is_mock():
         return _mock_chapter(idx, chapter)
 
     compact_context = _compact_generation_context(state)
@@ -1646,14 +1730,14 @@ def write_chapter(state: NovelState) -> dict:
         "7. 禁止出现“总结一下”“接下来”“如前所述”等元叙述词\n"
         "8. 直接输出小说正文，不要任何标题或说明文字"
     )
-    draft = llm.invoke([SystemMessage(content=prompt)]).content
+    draft = _invoke_llm(prompt).content
     return {"current_draft": draft}
 
 
 def review_chapter(state: NovelState) -> dict:
     """Agent 角色：审稿编辑 → 结构化评分 + 具体修改建议"""
-    if MOCK:
-        return _mock_review()
+    if _is_mock():
+        return _mock_review(state)
 
     if os.getenv("NOVEL_FAST_REVIEW", "1") == "1":
         rep_issues, rep_suggestions = _detect_repeated_story(state)
@@ -1710,7 +1794,7 @@ def review_chapter(state: NovelState) -> dict:
         f"{_compact_validation_context(state)}\n\n"
         "直接输出 JSON，不要任何额外文字。"
     )
-    response = llm.invoke([SystemMessage(content=prompt)])
+    response = _invoke_llm(prompt)
     try:
         content = _parse_json(response.content)
     except ValueError:
@@ -1726,9 +1810,9 @@ def review_chapter(state: NovelState) -> dict:
             },
             "review_score": 7,
             "review_feedback": f"审稿返回未按JSON格式输出，已保留原始意见：{raw}",
-            "review_pass": True,
-            "review_issues": [],
-            "review_suggestions": [],
+            "review_pass": False,
+            "review_issues": ["审稿返回格式无效，已按未通过处理"],
+            "review_suggestions": ["重新执行审稿，或重新生成本章"],
             "rewrite_count": state.get("rewrite_count", 0) + 1,
         }
 
@@ -1754,7 +1838,7 @@ def review_chapter(state: NovelState) -> dict:
 
 def revise_chapter(state: NovelState) -> dict:
     """Agent 角色：修订作家 → 根据审稿/连续性意见定向改稿。"""
-    if MOCK:
+    if _is_mock():
         draft = state.get("current_draft", "")
         notes = "；".join(state.get("review_suggestions", []) or state.get("continuity_suggestions", []) or [])
         return {"current_draft": draft + f"\n\n（Mock 修订：{notes or '已根据审稿意见微调'}）"}
@@ -1783,13 +1867,13 @@ def revise_chapter(state: NovelState) -> dict:
         "4. 如果原稿和当前大纲不一致，以当前章节大纲为准重写相关段落\n"
         "5. 不得破坏剧情圣经中的人物状态、伏笔和世界规则"
     )
-    draft = llm.invoke([SystemMessage(content=prompt)]).content
+    draft = _invoke_llm(prompt).content
     return {"current_draft": draft}
 
 
 def continuity_check(state: NovelState) -> dict:
     """Agent 角色：连续性编辑 → 检查剧情圣经、人物状态和大纲一致性。"""
-    if MOCK or os.getenv("NOVEL_FAST_CONTINUITY", "1") == "1":
+    if _is_mock() or os.getenv("NOVEL_FAST_CONTINUITY", "1") == "1":
         rep_issues, rep_suggestions = _detect_repeated_story(state)
         outline_issues, outline_suggestions = _outline_alignment_issues(state)
         issues = list(dict.fromkeys(rep_issues + outline_issues))
@@ -1817,7 +1901,7 @@ def continuity_check(state: NovelState) -> dict:
         "}\n\n"
         "判定标准：只要出现设定冲突、人物动机断裂、伏笔遗忘、章节钩子没有落实、与当前章节大纲不一致、重复前文剧情或重复桥段，则 pass=false。"
     )
-    raw_content = llm.invoke([SystemMessage(content=prompt)]).content
+    raw_content = _invoke_llm(prompt).content
     try:
         content = _parse_json(raw_content)
     except ValueError:
@@ -1859,7 +1943,7 @@ def update_story_bible(state: NovelState) -> dict:
     idx = state.get("current_chapter_idx", 0)
     chapter = (state.get("outline", []) or [{}])[idx] if idx < len(state.get("outline", []) or []) else {}
 
-    if MOCK or llm is None or os.getenv("NOVEL_FAST_MEMORY", "1") == "1":
+    if _is_mock() or _get_llm() is None or os.getenv("NOVEL_FAST_MEMORY", "1") == "1":
         summary = f"第{chapter.get('chapter_number', idx + 1)}章：{chapter.get('summary', '')}"
         bible["timeline"] = list(dict.fromkeys((bible.get("timeline", []) or []) + [summary]))[-200:]
         bible["last_chapter_summary"] = summary
@@ -1893,7 +1977,7 @@ def update_story_bible(state: NovelState) -> dict:
         '  "last_chapter_summary": "本章100字以内摘要"\n'
         "}\n"
     )
-    raw_content = llm.invoke([SystemMessage(content=prompt)]).content
+    raw_content = _invoke_llm(prompt).content
     try:
         content = _parse_json(raw_content)
     except ValueError:
@@ -2135,7 +2219,7 @@ def _mock_chapter(idx: int, chapter: dict) -> dict:
     }
 
 
-def _mock_review() -> dict:
+def _mock_review(state: dict) -> dict:
     return {
         "review_scores": {
             "logic_consistency": 4,
@@ -2149,7 +2233,7 @@ def _mock_review() -> dict:
         "review_pass": True,
         "review_issues": ["\u8bed\u8a00\u5076\u6709AI\u5473", "\u67d0\u4e9b\u5904\u53d9\u8ff0\u8fc7\u4e8e\u76f4\u767d"],
         "review_suggestions": ["\u51cf\u5c11\u5185\u5fc3\u72ec\u767d\uff0c\u591a\u7528\u5bf9\u8bdd\u548c\u884c\u52a8\u8868\u8fbe"],
-        "rewrite_count": 1,
+        "rewrite_count": state.get("rewrite_count", 0) + 1,
     }
 
 
@@ -2316,7 +2400,7 @@ if __name__ == "__main__":
         show_graph()
         sys.exit(0)
 
-    if not MOCK and llm is None:
+    if not _is_mock() and _get_llm() is None:
         print("[!] No valid OPENAI_API_KEY found.")
         print("    Edit .env or use --mock")
         sys.exit(1)
@@ -2337,7 +2421,9 @@ if __name__ == "__main__":
     print("  [Novel v2] \u7f51\u6587\u751f\u6210\u6d41\u6c34\u7ebf  (LangGraph)")
     print("=" * 60)
     print(f"  Idea: {idea[:80]}...")
-    print(f"  Mode: {'mock' if MOCK else os.getenv('NOVEL_LLM_MODEL', 'gpt-4o-mini')}")
+    print(
+        f"  Mode: {'mock' if _is_mock() else current_llm_settings().model}"
+    )
     print()
 
     app = build_pipeline()

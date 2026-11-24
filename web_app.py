@@ -1,60 +1,102 @@
 ﻿# -*- coding: utf-8 -*-
 """FastAPI backend — Novel Manager v3 (with settings support)"""
-import json, os, uuid, datetime, importlib, threading, traceback
+import json, os, uuid, datetime, threading, traceback
 import re
 import difflib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+import novel_pipeline as np
+from storage import NovelStore
 
 HERE = Path(__file__).parent
+DATA_DIR = HERE / "data"
 NOVELS_DIR = HERE / "novels"
 NOVELS_DIR.mkdir(exist_ok=True)
 DELETED_NOVELS_DIR = HERE / "deleted_novels"
 DELETED_NOVELS_DIR.mkdir(exist_ok=True)
+NOVEL_DB_PATH = Path(os.getenv("NOVEL_DB_PATH", str(DATA_DIR / "novels.db")))
+NOVEL_STORE = NovelStore(NOVEL_DB_PATH)
+NOVEL_ID_RE = re.compile(r"^[0-9a-f]{8}$")
+_SAVE_LOCK = threading.Lock()
+_ACTIVE_JOBS: set[str] = set()
+_ACTIVE_JOBS_LOCK = threading.Lock()
 
-app = FastAPI()
+MAX_REQUEST_BYTES = int(os.getenv("NOVEL_MAX_REQUEST_BYTES", "8000000"))
+MAX_TITLE_LENGTH = 200
+MAX_IDEA_LENGTH = 20_000
+MAX_INSTRUCTION_LENGTH = 10_000
+MAX_IMPORT_TEXT_LENGTH = 5_000_000
+MAX_COLLECTION_ITEMS = 5_000
+MAX_CHARACTER_ITEMS = 500
 
-# CORS ? allow any origin for local deployment & reverse proxy scenarios
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _initialize_storage()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+def _cors_origins() -> list[str]:
+    configured = os.getenv("NOVEL_CORS_ORIGINS", "").strip()
+    if configured:
+        return [origin.strip() for origin in configured.split(",") if origin.strip()]
+    return ["http://127.0.0.1:8000", "http://localhost:8000"]
+
+
+_allowed_origins = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_allowed_origins,
+    allow_credentials="*" not in _allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-GEN_PROGRESS = {}
-GEN_CANCEL = set()
-CREATE_PROGRESS = {}
+
+@app.middleware("http")
+async def limit_request_body(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            request_size = int(content_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "无效的 Content-Length"})
+        if request_size > MAX_REQUEST_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "请求体过大"})
+    return await call_next(request)
 
 
-# ── settings from request headers ──
+# ── request settings ──
 
-def _apply_settings(headers):
-    """Read custom headers and set env vars before reloading pipeline."""
-    api_key = headers.get("x-api-key") or headers.get("x-apikey") or ""
-    model = headers.get("x-model") or ""
-    base_url = headers.get("x-base-url") or headers.get("x-baseurl") or ""
+def _settings_from_headers(headers) -> np.LLMSettings:
+    """Layer request overrides over server defaults without mutating process env."""
+    def optional(*names):
+        for name in names:
+            value = headers.get(name)
+            if value is not None:
+                return value
+        return None
 
-    if api_key.strip():
-        os.environ["OPENAI_API_KEY"] = api_key.strip()
-        os.environ["NOVEL_MOCK"] = "0"
-    else:
-        os.environ.pop("OPENAI_API_KEY", None)
-        os.environ["NOVEL_MOCK"] = "1"
+    return np.resolve_llm_settings(
+        api_key=optional("x-api-key", "x-apikey"),
+        model=optional("x-model"),
+        base_url=optional("x-base-url", "x-baseurl"),
+    )
 
-    if model.strip():
-        os.environ["NOVEL_LLM_MODEL"] = model.strip()
 
-    if base_url.strip():
-        os.environ["OPENAI_API_BASE"] = base_url.strip()
-        os.environ["OPENAI_BASE_URL"] = base_url.strip()
-    else:
-        os.environ.pop("OPENAI_API_BASE", None)
-        os.environ.pop("OPENAI_BASE_URL", None)
+def _initialize_storage():
+    NOVELS_DIR.mkdir(exist_ok=True)
+    NOVEL_STORE.import_json_dir(NOVELS_DIR)
+    _resume_durable_jobs()
 
 
 def _error_detail(exc):
@@ -62,25 +104,69 @@ def _error_detail(exc):
     return text[:1000]
 
 
-def _reload():
-    import novel_pipeline as np
-    importlib.reload(np)
-    if np.llm is None and not np.MOCK:
-        os.environ["NOVEL_MOCK"] = "1"
-        importlib.reload(np)
-    return np
+def _validate_novel_id(nid: str) -> str:
+    nid = (nid or "").strip()
+    if not NOVEL_ID_RE.fullmatch(nid):
+        raise HTTPException(400, "无效的小说 ID")
+    return nid
+
+
+def _novel_path(nid: str) -> Path:
+    nid = _validate_novel_id(nid)
+    root = NOVELS_DIR.resolve()
+    path = (root / f"{nid}.json").resolve()
+    if path.parent != root:
+        raise HTTPException(400, "无效的小说路径")
+    return path
 
 
 def _load(nid):
-    p = NOVELS_DIR / f"{nid}.json"
-    if not p.exists():
+    nid = _validate_novel_id(nid)
+    novel = NOVEL_STORE.get_novel(nid)
+    if novel is None:
         raise HTTPException(404, "不存在")
-    return _ensure_novel_defaults(json.loads(p.read_text("utf-8")))
+    return _ensure_novel_defaults(novel)
 
 
 def _save(nid, data):
-    (NOVELS_DIR / f"{nid}.json").write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    nid = _validate_novel_id(nid)
+    _validate_novel_payload(data)
+    data["id"] = nid
+    NOVEL_STORE.save_novel(nid, data)
+
+
+def _validate_novel_payload(data: dict) -> None:
+    if not isinstance(data, dict):
+        raise HTTPException(422, "小说数据必须是对象")
+    for key, limit in (("title", MAX_TITLE_LENGTH), ("idea", MAX_IDEA_LENGTH)):
+        value = data.get(key, "")
+        if value is not None and not isinstance(value, str):
+            raise HTTPException(422, f"{key} 必须是文本")
+        if len(value or "") > limit:
+            raise HTTPException(422, f"{key} 超过长度限制")
+    if data.get("world_setting") is not None and not isinstance(data["world_setting"], dict):
+        raise HTTPException(422, "world_setting 必须是对象")
+    if data.get("volume_outline") is not None and not isinstance(data["volume_outline"], dict):
+        raise HTTPException(422, "volume_outline 必须是对象")
+    if data.get("story_bible") is not None and not isinstance(data["story_bible"], dict):
+        raise HTTPException(422, "story_bible 必须是对象")
+    for key, limit in (
+        ("characters", MAX_CHARACTER_ITEMS),
+        ("volume_outlines", MAX_COLLECTION_ITEMS),
+        ("pacing_outline", MAX_COLLECTION_ITEMS),
+        ("outline", MAX_COLLECTION_ITEMS),
+        ("chapters", MAX_COLLECTION_ITEMS),
+    ):
+        value = data.get(key, [])
+        if value is None:
+            data[key] = []
+            continue
+        if not isinstance(value, list):
+            raise HTTPException(422, f"{key} 必须是列表")
+        if len(value) > limit:
+            raise HTTPException(422, f"{key} 数量超过限制")
+    if any(not isinstance(chapter, str) for chapter in data.get("chapters", [])):
+        raise HTTPException(422, "chapters 只能包含文本章节")
 
 
 def _deleted_path(name: str) -> Path:
@@ -92,6 +178,18 @@ def _deleted_path(name: str) -> Path:
     if not p.exists():
         raise HTTPException(404, "回收站中不存在")
     return p
+
+
+def _write_json_atomic(path: Path, data: dict) -> None:
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    with _SAVE_LOCK:
+        try:
+            temp_path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            os.replace(temp_path, path)
+        finally:
+            temp_path.unlink(missing_ok=True)
 
 
 def _ensure_novel_defaults(novel):
@@ -122,46 +220,46 @@ def _ensure_novel_defaults(novel):
 
 
 class CreateReq(BaseModel):
-    title: str = ""
-    idea: str = ""
-    genre: str = ""
-    source_title: str = ""
-    source_summary: str = ""
+    title: str = Field(default="", max_length=MAX_TITLE_LENGTH)
+    idea: str = Field(default="", max_length=MAX_IDEA_LENGTH)
+    genre: str = Field(default="", max_length=200)
+    source_title: str = Field(default="", max_length=MAX_TITLE_LENGTH)
+    source_summary: str = Field(default="", max_length=MAX_IDEA_LENGTH)
 
 class SaveReq(BaseModel):
-    id: str = ""
-    title: str = ""
-    idea: str = ""
-    world_setting: dict = {}
-    characters: list = []
-    volume_outline: dict = {}
-    volume_outlines: list = []
-    pacing_outline: list = []
-    story_bible: dict = {}
-    outline: list = []
-    chapters: list = []
-    created_at: str = ""
+    id: str = Field(default="", max_length=32)
+    title: str = Field(default="", max_length=MAX_TITLE_LENGTH)
+    idea: str = Field(default="", max_length=MAX_IDEA_LENGTH)
+    world_setting: dict = Field(default_factory=dict)
+    characters: list = Field(default_factory=list, max_length=MAX_CHARACTER_ITEMS)
+    volume_outline: dict = Field(default_factory=dict)
+    volume_outlines: list = Field(default_factory=list, max_length=MAX_COLLECTION_ITEMS)
+    pacing_outline: list = Field(default_factory=list, max_length=MAX_COLLECTION_ITEMS)
+    story_bible: dict = Field(default_factory=dict)
+    outline: list = Field(default_factory=list, max_length=MAX_COLLECTION_ITEMS)
+    chapters: list = Field(default_factory=list, max_length=MAX_COLLECTION_ITEMS)
+    created_at: str = Field(default="", max_length=100)
 
 class ExpandReq(BaseModel):
-    count: int = 5
+    count: int = Field(default=5, ge=1, le=20)
 
 class RewriteReq(BaseModel):
-    instructions: str = ""
+    instructions: str = Field(default="", max_length=MAX_INSTRUCTION_LENGTH)
 
 class AssistUpdateReq(BaseModel):
-    target: str = "all"
-    instructions: str = ""
+    target: str = Field(default="all", max_length=50)
+    instructions: str = Field(default="", max_length=MAX_INSTRUCTION_LENGTH)
 
 class AuditReq(BaseModel):
-    focus: str = "all"
+    focus: str = Field(default="all", max_length=2_000)
 
 class RestoreNovelReq(SaveReq):
     pass
 
 class ImportTxtReq(BaseModel):
-    title: str = ""
-    text: str = ""
-    genre: str = ""
+    title: str = Field(default="", max_length=MAX_TITLE_LENGTH)
+    text: str = Field(default="", max_length=MAX_IMPORT_TEXT_LENGTH)
+    genre: str = Field(default="", max_length=200)
     ai_reconstruct: bool = True
 
 
@@ -320,11 +418,12 @@ def _build_imported_novel(title: str, text: str, genre: str = "") -> dict:
     }
 
 
-def _reconstruct_imported_metadata(novel: dict, chapters_raw: list, headers) -> tuple[dict, str]:
-    _apply_settings(headers)
+def _reconstruct_imported_metadata(
+    novel: dict, chapters_raw: list, settings: np.LLMSettings
+) -> tuple[dict, str]:
     try:
-        np = _reload()
-        rebuilt = np.reconstruct_imported_novel(novel, chapters_raw)
+        with np.use_llm_settings(settings):
+            rebuilt = np.reconstruct_imported_novel(novel, chapters_raw)
         for key in ("world_setting", "characters", "volume_outline", "volume_outlines", "pacing_outline", "story_bible", "outline"):
             if key in rebuilt and rebuilt[key]:
                 novel[key] = rebuilt[key]
@@ -452,7 +551,7 @@ def _merge_character_cards(existing: list, incoming: list) -> list:
     return merged
 
 
-def _generate_chapter_payload(nid: str, novel: dict, idx: int, np):
+def _generate_chapter_payload(nid: str, novel: dict, idx: int):
     result = np.run_single_chapter(_chapter_state(novel, idx))
     completed = result.get("completed_chapters", []) or []
     draft = result.get("archived_draft") or result.get("current_draft", "") or (completed[-1] if completed else "")
@@ -515,40 +614,117 @@ def _chapter_repetition_reason(novel: dict, idx: int, draft: str) -> str:
     return ""
 
 
-def _create_novel_worker(job_id, title, idea, genre, source_title="", source_summary=""):
+def _start_background_job(job_id: str, target, *args) -> bool:
+    with _ACTIVE_JOBS_LOCK:
+        if job_id in _ACTIVE_JOBS:
+            return False
+        _ACTIVE_JOBS.add(job_id)
+
+    def run():
+        try:
+            target(*args)
+        except Exception as exc:
+            traceback.print_exc()
+            NOVEL_STORE.update_job(
+                job_id,
+                status="error",
+                error=_error_detail(exc),
+                message="后台任务异常终止",
+            )
+        finally:
+            with _ACTIVE_JOBS_LOCK:
+                _ACTIVE_JOBS.discard(job_id)
+
     try:
-        CREATE_PROGRESS[job_id] = {"status": "running", "message": "正在生成世界观、角色卡和大纲...", "novel_id": None, "error": ""}
-        np = _reload()
-        out = np.generate_outline({
-            "user_idea": idea,
-            "genre": genre,
-            "source_title": source_title,
-            "source_summary": source_summary,
-        })
+        threading.Thread(target=run, daemon=True).start()
+    except Exception as exc:
+        with _ACTIVE_JOBS_LOCK:
+            _ACTIVE_JOBS.discard(job_id)
+        NOVEL_STORE.update_job(
+            job_id,
+            status="error",
+            error=_error_detail(exc),
+            message="后台任务启动失败",
+        )
+        return False
+    return True
+
+
+def _resume_durable_jobs():
+    NOVEL_STORE.requeue_running_jobs()
+    settings = np.resolve_llm_settings()
+    for job in NOVEL_STORE.list_jobs(("queued", "running")):
+        job_id = job["id"]
+        if job["kind"] == "create":
+            _start_background_job(job_id, _create_novel_worker, job_id, settings)
+        elif job["kind"] == "generate" and job.get("novel_id"):
+            _start_background_job(
+                job_id, _generate_remaining_worker, job_id, job["novel_id"], settings
+            )
+        else:
+            NOVEL_STORE.update_job(
+                job_id,
+                status="error",
+                error="无法恢复未知或缺少小说 ID 的后台任务",
+                message="任务恢复失败",
+            )
+
+
+def _create_novel_worker(job_id: str, settings: np.LLMSettings):
+    job = NOVEL_STORE.get_job(job_id)
+    if not job:
+        return
+    payload = job.get("payload") or {}
+    try:
+        NOVEL_STORE.update_job(
+            job_id,
+            status="running",
+            message="正在生成世界观、角色卡和大纲...",
+        )
+        with np.use_llm_settings(settings):
+            out = np.generate_outline(
+                {
+                    "user_idea": payload.get("idea", ""),
+                    "genre": payload.get("genre", ""),
+                    "source_title": payload.get("source_title", ""),
+                    "source_summary": payload.get("source_summary", ""),
+                }
+            )
         novel = {
             "id": uuid.uuid4().hex[:8],
-            "title": title.strip() or "未命名小说",
+            "title": (payload.get("title") or "").strip() or "未命名小说",
             "created_at": datetime.datetime.now().isoformat(),
-            "idea": idea,
-            "genre": genre,
+            "idea": payload.get("idea", ""),
+            "genre": payload.get("genre", ""),
             **out,
             "chapters": [],
         }
         _strip_runtime_fields(novel)
         _save(novel["id"], novel)
-        CREATE_PROGRESS[job_id] = {"status": "done", "message": "生成完成", "novel_id": novel["id"], "title": novel["title"], "error": ""}
+        NOVEL_STORE.update_job(
+            job_id,
+            status="done",
+            novel_id=novel["id"],
+            result={"title": novel["title"]},
+            message="生成完成",
+        )
     except Exception as e:
-        CREATE_PROGRESS[job_id] = {"status": "error", "message": "生成失败", "novel_id": None, "error": str(e)}
+        traceback.print_exc()
+        NOVEL_STORE.update_job(
+            job_id,
+            status="error",
+            error=_error_detail(e),
+            message="生成失败",
+        )
 
 
 @app.get("/api/novels")
 def list_novels():
     items = []
-    for f in sorted(NOVELS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-        d = json.loads(f.read_text("utf-8"))
+    for d in NOVEL_STORE.list_novels():
         items.append({
-            "id": d["id"], "title": d["title"],
-            "created_at": d["created_at"],
+            "id": d.get("id", ""), "title": d.get("title", "未命名小说"),
+            "created_at": d.get("created_at", ""),
             "idea_preview": d.get("idea", "")[:80],
             "chapter_count": len(d.get("chapters", [])),
         })
@@ -560,7 +736,7 @@ def list_deleted_novels():
     items = []
     for f in sorted(DELETED_NOVELS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
-            d = json.loads(f.read_text("utf-8"))
+            d = json.loads(f.read_text(encoding="utf-8"))
         except Exception:
             continue
         items.append({
@@ -577,16 +753,24 @@ def list_deleted_novels():
 
 @app.post("/api/novels", status_code=201)
 async def create_novel(body: CreateReq, request: Request):
-    _apply_settings(request.headers)
     if not body.idea.strip():
         raise HTTPException(400, "创意不能为空")
+    settings = _settings_from_headers(request.headers)
     job_id = uuid.uuid4().hex[:10]
-    CREATE_PROGRESS[job_id] = {"status": "queued", "message": "任务已创建", "novel_id": None, "error": ""}
-    threading.Thread(
-        target=_create_novel_worker,
-        args=(job_id, body.title, body.idea, body.genre, body.source_title, body.source_summary),
-        daemon=True,
-    ).start()
+    NOVEL_STORE.upsert_job(
+        job_id,
+        kind="create",
+        status="queued",
+        payload={
+            "title": body.title,
+            "idea": body.idea,
+            "genre": body.genre,
+            "source_title": body.source_title,
+            "source_summary": body.source_summary,
+        },
+        message="任务已创建",
+    )
+    _start_background_job(job_id, _create_novel_worker, job_id, settings)
     return {"job_id": job_id, "status": "queued"}
 
 
@@ -596,7 +780,9 @@ def import_txt(body: ImportTxtReq, request: Request):
     chapters_raw = _split_txt_chapters(body.text)
     reconstruct_error = ""
     if body.ai_reconstruct:
-        novel, reconstruct_error = _reconstruct_imported_metadata(novel, chapters_raw, request.headers)
+        novel, reconstruct_error = _reconstruct_imported_metadata(
+            novel, chapters_raw, _settings_from_headers(request.headers)
+        )
     _strip_runtime_fields(novel)
     _save(novel["id"], novel)
     return {
@@ -629,7 +815,11 @@ def resplit_imported_novel(nid: str, request: Request):
     rebuilt["title"] = novel.get("title", rebuilt["title"])
     rebuilt["created_at"] = novel.get("created_at", rebuilt["created_at"])
     if request.headers.get("x-resplit-ai", "0") == "1":
-        rebuilt, _ = _reconstruct_imported_metadata(rebuilt, _split_txt_chapters(merged_text), request.headers)
+        rebuilt, _ = _reconstruct_imported_metadata(
+            rebuilt,
+            _split_txt_chapters(merged_text),
+            _settings_from_headers(request.headers),
+        )
     _strip_runtime_fields(rebuilt)
     _save(nid, rebuilt)
     return {"ok": True, "chapter_count": len(rebuilt["chapters"]), "outline_count": len(rebuilt["outline"])}
@@ -637,7 +827,22 @@ def resplit_imported_novel(nid: str, request: Request):
 
 @app.get("/api/create-jobs/{job_id}")
 def create_job_status(job_id: str):
-    return CREATE_PROGRESS.get(job_id, {"status": "missing", "message": "任务不存在或服务已重启", "novel_id": None, "error": ""})
+    job = NOVEL_STORE.get_job(job_id)
+    if not job or job["kind"] != "create":
+        return {
+            "status": "missing",
+            "message": "任务不存在",
+            "novel_id": None,
+            "error": "",
+        }
+    result = job.get("result") or {}
+    return {
+        "status": job["status"],
+        "message": job.get("message", ""),
+        "novel_id": job.get("novel_id"),
+        "title": result.get("title", ""),
+        "error": job.get("error") or "",
+    }
 
 
 @app.get("/api/novels/{nid}")
@@ -663,7 +868,6 @@ def update_novel(nid: str, body: SaveReq):
     elif "volume_outline" in provided and novel.get("volume_outline"):
         novel["volume_outlines"] = [novel["volume_outline"]]
     if "outline" in provided or "pacing_outline" in provided or "volume_outline" in provided or "volume_outlines" in provided:
-        np = _reload()
         _state = {
             "volume_outline": novel.get("volume_outline", {}),
             "pacing_outline": novel.get("pacing_outline", []),
@@ -678,15 +882,15 @@ def update_novel(nid: str, body: SaveReq):
 
 
 @app.post("/api/novels/{nid}/assist-update")
-async def assist_update(nid: str, body: AssistUpdateReq, request: Request):
+def assist_update(nid: str, body: AssistUpdateReq, request: Request):
     """AI 按用户方向辅助更新世界观、角色卡、大纲或剧情圣经。"""
-    _apply_settings(request.headers)
     if not body.instructions.strip():
         raise HTTPException(400, "修改方向不能为空")
     novel = _load(nid)
-    np = _reload()
+    settings = _settings_from_headers(request.headers)
     try:
-        updated = np.assist_update_novel(novel, body.target, body.instructions)
+        with np.use_llm_settings(settings):
+            updated = np.assist_update_novel(novel, body.target, body.instructions)
     except HTTPException:
         raise
     except Exception as exc:
@@ -759,15 +963,15 @@ async def assist_update(nid: str, body: AssistUpdateReq, request: Request):
 
 
 @app.post("/api/novels/{nid}/audit")
-async def audit_novel_endpoint(nid: str, body: AuditReq, request: Request):
+def audit_novel_endpoint(nid: str, body: AuditReq, request: Request):
     """AI 审稿：检查章节与设定、大纲、剧情圣经之间的冲突、重复和跑偏。"""
-    _apply_settings(request.headers)
     novel = _load(nid)
     if not any((ch or "").strip() for ch in novel.get("chapters", []) or []):
         raise HTTPException(400, "还没有已生成章节，无法审稿")
-    np = _reload()
+    settings = _settings_from_headers(request.headers)
     try:
-        report = np.audit_novel(novel, body.focus)
+        with np.use_llm_settings(settings):
+            report = np.audit_novel(novel, body.focus)
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(500, f"小说审稿失败：{_error_detail(exc)}")
@@ -802,15 +1006,15 @@ async def audit_novel_endpoint(nid: str, body: AuditReq, request: Request):
 
 
 @app.post("/api/novels/{nid}/audit/apply-outline")
-async def apply_audit_to_outline(nid: str, request: Request):
+def apply_audit_to_outline(nid: str, request: Request):
     """根据最近一次审稿报告更新篇章/节奏/章节大纲与剧情圣经备注，并同步重写受影响章节。"""
-    _apply_settings(request.headers)
     novel = _load(nid)
     if not novel.get("audit_report"):
         raise HTTPException(400, "还没有审稿报告，请先审稿")
-    np = _reload()
+    settings = _settings_from_headers(request.headers)
     try:
-        updated = np.update_outline_from_audit(novel)
+        with np.use_llm_settings(settings):
+            updated = np.update_outline_from_audit(novel)
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(500, f"根据审稿更新大纲失败：{_error_detail(exc)}")
@@ -828,13 +1032,14 @@ async def apply_audit_to_outline(nid: str, request: Request):
     novel["audit_outline_updated_at"] = datetime.datetime.now().isoformat()
     rewrite_indexes = _audit_rewrite_indexes(novel)
     rewritten_chapters = []
-    for idx in rewrite_indexes:
-        payload = _generate_chapter_payload(nid, novel, idx, np)
-        rewritten_chapters.append({
-            "chapter_index": payload["chapter_index"],
-            "chapter_number": payload["chapter_number"],
-            "chapter_title": payload["chapter_title"],
-        })
+    with np.use_llm_settings(settings):
+        for idx in rewrite_indexes:
+            payload = _generate_chapter_payload(nid, novel, idx)
+            rewritten_chapters.append({
+                "chapter_index": payload["chapter_index"],
+                "chapter_number": payload["chapter_number"],
+                "chapter_title": payload["chapter_title"],
+            })
     if rewritten_chapters:
         novel = _load(nid)
     _save(nid, novel)
@@ -842,12 +1047,11 @@ async def apply_audit_to_outline(nid: str, request: Request):
 
 
 @app.post("/api/novels/{nid}/expand-outline")
-async def expand_outline(nid: str, body: ExpandReq, request: Request):
+def expand_outline(nid: str, body: ExpandReq, request: Request):
     """AI 续写 count 章章节大纲，追加到 outline 并保存。"""
-    _apply_settings(request.headers)
     novel = _load(nid)
     count = max(1, min(int(body.count or 5), 20))  # 限制 1-20，避免超长请求
-    np = _reload()
+    settings = _settings_from_headers(request.headers)
 
     state = {
         "user_idea": novel.get("idea", ""),
@@ -858,7 +1062,8 @@ async def expand_outline(nid: str, body: ExpandReq, request: Request):
         "story_bible": novel.get("story_bible", {}),
         "outline": novel.get("outline", []),
     }
-    new_chapters = np.expand_chapter_outlines(state, count)
+    with np.use_llm_settings(settings):
+        new_chapters = np.expand_chapter_outlines(state, count)
 
     outline = list(novel.get("outline", []))
     outline.extend(new_chapters)
@@ -874,13 +1079,15 @@ async def expand_outline(nid: str, body: ExpandReq, request: Request):
 
 @app.delete("/api/novels/{nid}")
 def delete_novel(nid: str):
-    p = NOVELS_DIR / f"{nid}.json"
-    if p.exists():
-        data = json.loads(p.read_text("utf-8"))
+    nid = _validate_novel_id(nid)
+    data = NOVEL_STORE.get_novel(nid)
+    if data is not None:
         title = "".join(ch if ch.isalnum() else "_" for ch in data.get("title", nid))[:40].strip("_")
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         backup = DELETED_NOVELS_DIR / f"{stamp}_{title or nid}_{nid}.json"
-        p.replace(backup)
+        _write_json_atomic(backup, data)
+        _mark_generation_cancelled(nid, "小说已删除，生成任务已取消")
+        NOVEL_STORE.delete_novel(nid)
         return {"ok": True, "backup": backup.name}
     return {"ok": True}
 
@@ -888,11 +1095,11 @@ def delete_novel(nid: str):
 @app.post("/api/deleted-novels/{name}/restore")
 def restore_deleted_novel(name: str):
     p = _deleted_path(name)
-    data = json.loads(p.read_text("utf-8"))
+    data = json.loads(p.read_text(encoding="utf-8"))
     nid = (data.get("id") or uuid.uuid4().hex[:8]).strip()
-    if not nid:
+    if not NOVEL_ID_RE.fullmatch(nid):
         nid = uuid.uuid4().hex[:8]
-    if (NOVELS_DIR / f"{nid}.json").exists():
+    if NOVEL_STORE.get_novel(nid) is not None:
         nid = uuid.uuid4().hex[:8]
     data["id"] = nid
     data.setdefault("title", "恢复的小说")
@@ -916,6 +1123,7 @@ def restore_novel(body: RestoreNovelReq):
     nid = (data.get("id") or uuid.uuid4().hex[:8]).strip()
     if not nid:
         nid = uuid.uuid4().hex[:8]
+    _validate_novel_id(nid)
     data["id"] = nid
     data.setdefault("title", "恢复的小说")
     data.setdefault("created_at", datetime.datetime.now().isoformat())
@@ -925,19 +1133,18 @@ def restore_novel(body: RestoreNovelReq):
 
 
 @app.post("/api/novels/{nid}/generate-chapter/{idx}")
-async def generate_chapter(nid: str, idx: int, request: Request):
-    _apply_settings(request.headers)
+def generate_chapter(nid: str, idx: int, request: Request):
     novel = _load(nid)
     if idx < 0 or idx >= len(novel.get("outline", [])):
         raise HTTPException(400, "章节索引超出范围")
 
-    np = _reload()
-    return _generate_chapter_payload(nid, novel, idx, np)
+    settings = _settings_from_headers(request.headers)
+    with np.use_llm_settings(settings):
+        return _generate_chapter_payload(nid, novel, idx)
 
 
 @app.post("/api/novels/{nid}/rewrite-chapter/{idx}")
-async def rewrite_chapter(nid: str, idx: int, body: RewriteReq, request: Request):
-    _apply_settings(request.headers)
+def rewrite_chapter(nid: str, idx: int, body: RewriteReq, request: Request):
     novel = _load(nid)
     if idx < 0 or idx >= len(novel.get("outline", [])):
         raise HTTPException(400, "章节索引超出范围")
@@ -945,27 +1152,30 @@ async def rewrite_chapter(nid: str, idx: int, body: RewriteReq, request: Request
     if idx >= len(chapters) or not chapters[idx].strip():
         raise HTTPException(400, "本章还没有正文，不能重写")
 
-    np = _reload()
-    state = _chapter_state(novel, idx)
-    state["current_draft"] = chapters[idx]
-    state["review_issues"] = ["用户要求重写本章"]
-    state["review_suggestions"] = [body.instructions.strip() or "在保持大纲不变的前提下提升章节质量"]
+    settings = _settings_from_headers(request.headers)
+    with np.use_llm_settings(settings):
+        state = _chapter_state(novel, idx)
+        state["current_draft"] = chapters[idx]
+        state["review_issues"] = ["用户要求重写本章"]
+        state["review_suggestions"] = [body.instructions.strip() or "在保持大纲不变的前提下提升章节质量"]
 
-    result = np.revise_chapter(state)
-    state.update(result)
-    rv = np.review_chapter(state)
-    state.update(rv)
-    while not state.get("review_pass", True) and state.get("rewrite_count", 0) < 3:
-        state.update(np.revise_chapter(state))
-        state.update(np.review_chapter(state))
-    state.update(np.continuity_check(state))
-    if not state.get("continuity_pass", True) and state.get("rewrite_count", 0) < 3:
-        state.update(np.revise_chapter(state))
-        state.update(np.review_chapter(state))
+        result = np.revise_chapter(state)
+        state.update(result)
+        rv = np.review_chapter(state)
+        state.update(rv)
+        while not state.get("review_pass", True) and state.get("rewrite_count", 0) < 3:
+            state.update(np.revise_chapter(state))
+            state.update(np.review_chapter(state))
         state.update(np.continuity_check(state))
-    state.update(np.update_story_bible(state))
+        if not state.get("continuity_pass", True) and state.get("rewrite_count", 0) < 3:
+            state.update(np.revise_chapter(state))
+            state.update(np.review_chapter(state))
+            state.update(np.continuity_check(state))
+        state.update(np.update_story_bible(state))
 
-    draft, repair_state, alignment_issues = _repair_chapter_alignment(novel, idx, state.get("current_draft", ""), np)
+        draft, repair_state, alignment_issues = _repair_chapter_alignment(
+            novel, idx, state.get("current_draft", ""), np
+        )
     if alignment_issues:
         state.update(repair_state)
     chapters[idx] = draft
@@ -981,72 +1191,185 @@ async def rewrite_chapter(nid: str, idx: int, body: RewriteReq, request: Request
     }
 
 
-def _generate_remaining_worker(nid):
+def _generation_job_id(nid: str) -> str:
+    return f"gen-{nid}"
+
+
+def _generation_progress_for_job(job: dict | None) -> dict:
+    progress = {
+        "status": "idle",
+        "current": None,
+        "completed": 0,
+        "total": 0,
+        "errors": [],
+        "notes": [],
+    }
+    if not job:
+        return progress
+    result = job.get("result") or {}
+    if isinstance(result, dict):
+        progress.update(result)
+    progress["status"] = job.get("status") or progress["status"]
+    progress["message"] = job.get("message", "")
+    if job.get("error"):
+        progress["error"] = job["error"]
+    if progress["status"] in ("done", "error", "cancelled"):
+        progress["current"] = None
+    return progress
+
+
+def _mark_generation_cancelled(nid: str, message: str = "生成任务已取消"):
+    job_id = _generation_job_id(nid)
+    job = NOVEL_STORE.get_job(job_id)
+    if not job or job.get("status") not in ("queued", "running"):
+        return
+    progress = _generation_progress_for_job(job)
+    progress.update({"status": "cancelled", "current": None, "message": message})
+    NOVEL_STORE.update_job(
+        job_id,
+        status="cancelled",
+        message=message,
+        result=progress,
+    )
+
+
+def _generate_remaining_worker(
+    job_id: str, nid: str, settings: np.LLMSettings
+):
+    progress = {
+        "status": "running",
+        "current": None,
+        "completed": 0,
+        "total": 0,
+        "errors": [],
+        "notes": [],
+    }
     try:
-        np = _reload()
-        novel = _load(nid)
-        outline = novel.get("outline", [])
-        chapters = list(novel.get("chapters", []))
-        targets = [i for i in range(len(outline)) if i >= len(chapters) or not (chapters[i] or "").strip()]
-        GEN_PROGRESS[nid] = {"status": "running", "current": None, "completed": 0, "total": len(targets), "errors": [], "notes": []}
-        for done, idx in enumerate(targets, start=1):
-            if nid in GEN_CANCEL:
-                GEN_PROGRESS[nid]["status"] = "cancelled"
-                GEN_CANCEL.discard(nid)
+        with np.use_llm_settings(settings):
+            novel = _load(nid)
+            outline = novel.get("outline", [])
+            chapters = list(novel.get("chapters", []))
+            targets = [i for i in range(len(outline)) if i >= len(chapters) or not (chapters[i] or "").strip()]
+            progress["total"] = len(targets)
+            if NOVEL_STORE.is_cancelled(job_id):
                 return
-            GEN_PROGRESS[nid]["current"] = idx
-            try:
-                novel = _load(nid)
-                result = np.run_single_chapter(_chapter_state(novel, idx))
-                draft = _save_chapter_result(nid, novel, idx, result)
-                reason = _chapter_repetition_reason(novel, idx, draft)
-                if reason:
-                    GEN_PROGRESS[nid].setdefault("notes", []).append(f"第{idx + 1}章触发重写：{reason}")
+            NOVEL_STORE.update_job(
+                job_id,
+                status="running",
+                message="正在生成剩余章节...",
+                result=progress,
+            )
+            for done, idx in enumerate(targets, start=1):
+                if NOVEL_STORE.is_cancelled(job_id):
+                    return
+                progress["current"] = idx
+                NOVEL_STORE.update_job(job_id, result=progress)
+                try:
                     novel = _load(nid)
-                    draft, state, _ = _repair_chapter_alignment(novel, idx, draft, np, reason)
-                    chapters_now = list(novel.get("chapters", []))
-                    while len(chapters_now) <= idx:
-                        chapters_now.append("")
-                    chapters_now[idx] = state.get("current_draft", "")
-                    novel["chapters"] = chapters_now
-                    novel["story_bible"] = state.get("story_bible", novel.get("story_bible", {}))
-                    _save(nid, novel)
-            except Exception as e:
-                GEN_PROGRESS[nid].setdefault("errors", []).append(f"第{idx + 1}章：{e}")
-            GEN_PROGRESS[nid]["completed"] = done
-        GEN_PROGRESS[nid]["current"] = None
-        GEN_PROGRESS[nid]["status"] = "done"
+                    result = np.run_single_chapter(_chapter_state(novel, idx))
+                    draft = _save_chapter_result(nid, novel, idx, result)
+                    reason = _chapter_repetition_reason(novel, idx, draft)
+                    if reason:
+                        progress.setdefault("notes", []).append(f"第{idx + 1}章触发重写：{reason}")
+                        novel = _load(nid)
+                        draft, state, _ = _repair_chapter_alignment(novel, idx, draft, np, reason)
+                        chapters_now = list(novel.get("chapters", []))
+                        while len(chapters_now) <= idx:
+                            chapters_now.append("")
+                        chapters_now[idx] = state.get("current_draft", "")
+                        novel["chapters"] = chapters_now
+                        novel["story_bible"] = state.get("story_bible", novel.get("story_bible", {}))
+                        _save(nid, novel)
+                except Exception as e:
+                    progress.setdefault("errors", []).append(f"第{idx + 1}章：{e}")
+                progress["completed"] = done
+                if NOVEL_STORE.is_cancelled(job_id):
+                    return
+                NOVEL_STORE.update_job(job_id, result=progress)
+        progress["current"] = None
+        progress["status"] = "done"
+        NOVEL_STORE.update_job(
+            job_id,
+            status="done",
+            message="剩余章节生成完成",
+            result=progress,
+        )
     except Exception as e:
-        GEN_PROGRESS[nid] = {"status": "error", "current": None, "completed": 0, "total": 0, "errors": [str(e)]}
+        traceback.print_exc()
+        progress["status"] = "error"
+        progress["current"] = None
+        progress.setdefault("errors", []).append(str(e))
+        NOVEL_STORE.update_job(
+            job_id,
+            status="error",
+            error=_error_detail(e),
+            message="生成剩余章节失败",
+            result=progress,
+        )
 
 
 @app.post("/api/novels/{nid}/generate-remaining")
-async def generate_remaining(nid: str, request: Request):
-    _apply_settings(request.headers)
+def generate_remaining(nid: str, request: Request):
     _load(nid)
-    if GEN_PROGRESS.get(nid, {}).get("status") == "running":
+    settings = _settings_from_headers(request.headers)
+    job_id = _generation_job_id(nid)
+    job = NOVEL_STORE.get_job(job_id)
+    with _ACTIVE_JOBS_LOCK:
+        is_active = job_id in _ACTIVE_JOBS
+    if is_active and job and job.get("status") in ("queued", "running"):
         return {"ok": True, "status": "already_running"}
-    GEN_CANCEL.discard(nid)
-    GEN_PROGRESS[nid] = {"status": "running", "current": None, "completed": 0, "total": 0, "errors": []}
-    threading.Thread(target=_generate_remaining_worker, args=(nid,), daemon=True).start()
-    return {"ok": True}
+    NOVEL_STORE.upsert_job(
+        job_id,
+        kind="generate",
+        status="queued",
+        novel_id=nid,
+        message="任务已排队",
+    )
+    if not _start_background_job(
+        job_id, _generate_remaining_worker, job_id, nid, settings
+    ):
+        return {"ok": True, "status": "already_running"}
+    return {"ok": True, "status": "queued"}
 
 
 @app.get("/api/novels/{nid}/generation-progress")
 def generation_progress(nid: str):
-    return GEN_PROGRESS.get(nid, {"status": "idle", "current": None, "completed": 0, "total": 0, "errors": [], "notes": []})
+    _validate_novel_id(nid)
+    return _generation_progress_for_job(
+        NOVEL_STORE.get_job(_generation_job_id(nid))
+    )
 
 
 @app.post("/api/novels/{nid}/cancel-generation")
-@app.get("/{path:path}")
-async def index(path: str = ""):
-    """Serve SPA ? if the path is not an API route, serve index.html."""
-    if path.startswith("api/") or path.startswith("openapi") or path in ("docs", "redoc"):
-        from fastapi.exceptions import HTTPException
-        raise HTTPException(404)
-    return HTMLResponse((HERE / "templates" / "index.html").read_text("utf-8"))
 def cancel_generation(nid: str):
-    GEN_CANCEL.add(nid)
-    if nid in GEN_PROGRESS:
-        GEN_PROGRESS[nid]["status"] = "cancelled"
+    _validate_novel_id(nid)
+    _mark_generation_cancelled(nid)
     return {"ok": True}
+
+
+STATIC_DIR = HERE / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+SKIN_TEMPLATES = {
+    "base": "base.html",
+    "longform": "index.html",
+    "poetic": "theme-poetic.html",
+    "editorial": "theme-editorial.html",
+    "anime": "theme-anime.html",
+    "oriental": "theme-oriental.html",
+}
+
+
+@app.get("/{path:path}")
+async def index(request: Request, path: str = ""):
+    """Serve the selected complete interface after every API route is registered."""
+    if path.startswith("api/") or path.startswith("openapi") or path in ("docs", "redoc"):
+        raise HTTPException(404)
+    skin = request.query_params.get("skin", "longform").strip()
+    template_name = SKIN_TEMPLATES.get(skin, "index.html")
+    return HTMLResponse(
+        (HERE / "templates" / template_name).read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store"},
+    )

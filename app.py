@@ -1,8 +1,8 @@
 ﻿import streamlit as st
-import os
 import sys
-import importlib
 from pathlib import Path
+
+import novel_pipeline as np
 
 st.set_page_config(
     page_title="LangGraph 小说流水线",
@@ -37,31 +37,27 @@ PROVIDERS = {
 
 
 def _run_pipeline(idea: str, mock: bool, model: str, api_key: str, base_url: str, genre: str = "urban"):
-    os.environ["NOVEL_MOCK"] = "1" if mock else "0"
-    os.environ["NOVEL_LLM_MODEL"] = model
-    os.environ["OPENAI_API_BASE"] = base_url
-    os.environ["OPENAI_BASE_URL"] = base_url
-    if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
+    settings = np.resolve_llm_settings(
+        api_key=api_key or None,
+        model=model or None,
+        base_url=base_url or None,
+        mock=mock,
+    )
+    with np.use_llm_settings(settings):
+        app = np.build_pipeline()
+        config = {"configurable": {"thread_id": "novel-run-001"}}
+        chapters = []
 
-    import novel_pipeline as np
-    importlib.reload(np)
-
-    app = np.build_pipeline()
-    config = {"configurable": {"thread_id": "novel-run-001"}}
-    chapters = []
-
-    for event in app.stream({"user_idea": idea, "genre": genre}, config):
-        yield event
-        for name, value in event.items():
-            if name == "advance":
-                chapters = value.get("completed_chapters", [])
+        for event in app.stream({"user_idea": idea, "genre": genre}, config):
+            yield event
+            for name, value in event.items():
+                if name == "advance":
+                    chapters = value.get("completed_chapters", [])
 
     yield {"_done": True, "chapters": chapters}
 
 
 def _show_graph_png():
-    import novel_pipeline as np
     return np.build_pipeline().get_graph().draw_mermaid_png()
 
 

@@ -20,6 +20,8 @@ Thumbs.db
 # Project specific
 novels/
 deleted_novels/
+data/
+data/*.db*
 outputs/
 *.log
 _scratch/

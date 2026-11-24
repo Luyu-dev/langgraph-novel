@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="雾港放送完整小说创作界面。漫画分镜式首页与连载企划台，保留小说、章节、设定和审稿等真实功能。">
+  <meta name="theme-color" content="#f1eadb">
+  <title>雾港放送 | 小说创作工作台</title>
+  <link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <script defer src="/static/js/skin-switcher.js"></script>
+  <link rel="stylesheet" href="/static/ui/workspace.css">
+  <link rel="stylesheet" href="/static/ui/themes/anime.css">
+  <link rel="stylesheet" href="/static/ui/skin-panel.css">
+  <link rel="stylesheet" href="/static/ui/themes/anime-workspace.css">
+  <link rel="stylesheet" href="/static/ui/app-compat.css">
+</head>
+<body class="anime-page theme-anime" data-skin-page="anime" data-route="home">
+  <a class="skip-link" href="#app">跳到主要内容</a>
+
+  <header class="app-header">
+    <button class="app-brand" type="button" data-route="home" aria-label="返回首页">
+      <span class="brand-mark" aria-hidden="true"><i class="ph ph-book-open-text"></i></span>
+      <span class="brand-copy">
+        <strong>小说创作工作台</strong>
+        <small>漫画分镜式首页与连载企划台</small>
+      </span>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="主导航">
+      <button class="is-active" type="button" data-route="home" data-nav="home">
+        <i class="ph ph-house" aria-hidden="true"></i>
+        <span>首页</span>
+      </button>
+      <button type="button" data-route="library" data-nav="library">
+        <i class="ph ph-books" aria-hidden="true"></i>
+        <span>小说库</span>
+      </button>
+      <button type="button" data-route="import" data-nav="import">
+        <i class="ph ph-file-arrow-down" aria-hidden="true"></i>
+        <span>导入 TXT</span>
+      </button>
+      <button type="button" data-route="trash" data-nav="trash">
+        <i class="ph ph-trash" aria-hidden="true"></i>
+        <span>回收站</span>
+      </button>
+    </nav>
+
+    <div class="header-actions">
+      <button class="icon-button complete-skin-launcher" type="button" data-complete-skin-launcher aria-haspopup="dialog" aria-controls="complete-skin-panel" aria-expanded="false" aria-label="切换完整界面皮肤" title="切换皮肤">
+        <i class="ph ph-palette" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button" type="button" id="settings-open" aria-label="打开设置" title="设置">
+        <i class="ph ph-gear-six" aria-hidden="true"></i>
+      </button>
+      <button class="menu-toggle" type="button" id="menu-toggle" aria-label="打开导航" aria-expanded="false">
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <!-- 首页：保留 雾港放送 最初认可的独立版式 -->
+    <section class="page is-active themed-home" data-page="home">
+<div class="anime-ticker" aria-hidden="true">
+      <span>NEW SERIAL / 新连载企划</span>
+      <span>构建设定</span><i class="ph ph-arrow-right"></i><span>生成章节</span><i class="ph ph-arrow-right"></i><span>审稿续写</span>
+      <span>LONGFORM MODE</span>
+    </div>
+
+    <section class="anime-hero" aria-labelledby="hero-title">
+      <div class="hero-copy" data-reveal>
+        <p class="hero-kicker"><span>多智能体长篇小说创作</span><span>EP. 01 / 首页</span></p>
+        <h1 id="hero-title">让一个脑洞<br><span>连载成一部小说</span></h1>
+        <p class="hero-intro">从世界观和角色卡开场，接着分卷、分章、写正文。审稿与剧情记忆一路跟着故事跑，下一话不会忘记上一话。</p>
+        <div class="hero-actions">
+          <button class="button button-primary" type="button" data-route="create">
+            <i class="ph ph-sparkle" aria-hidden="true"></i>
+            <span>创立新小说</span>
+          </button>
+          <button class="button button-secondary" type="button" data-route="library">
+            <span>打开小说库</span>
+            <i class="ph ph-arrow-right" aria-hidden="true"></i>
+          </button>
+        </div>
+        <p class="hero-caption"><strong>STORIES CONTINUE</strong><span>设定、正文、审稿共用同一份创作档案</span></p>
+      </div>
+
+      <div class="hero-panels" aria-label="漫画分镜式产品视觉" data-reveal>
+        <figure class="panel-main">
+          <img src="/static/assets/anime-kyoto.jpg" alt="京都街道、塔与穿和服的动漫风格人物">
+          <figcaption><span>STORY WORLD</span><span>世界观与人物从这里开篇</span></figcaption>
+        </figure>
+        <figure class="panel-small">
+          <img src="/static/assets/anime-sakura.jpg" alt="盛开的樱花">
+          <figcaption>角色与氛围</figcaption>
+        </figure>
+        <div class="panel-bubble">
+          <span>第一话</span>
+          <strong>先把故事世界立起来</strong>
+        </div>
+        <div class="panel-number" aria-hidden="true">01</div>
+        <div class="panel-stripes" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="entry-section" aria-labelledby="entry-title">
+      <div class="entry-heading" data-reveal>
+        <div>
+          <p class="section-kicker">SELECT YOUR SCENE</p>
+          <h2 id="entry-title">选一个入口，开始这一话</h2>
+        </div>
+        <p>四个入口对应项目真实首页。无论从哪里开场，主操作仍然是创立新小说。</p>
+      </div>
+
+      <div class="entry-grid">
+        <button class="entry-card entry-create" type="button" data-route="create" data-reveal>
+          <span class="card-chapter">SCENE 01</span>
+          <span class="card-icon"><i class="ph ph-sparkle" aria-hidden="true"></i></span>
+          <span class="card-copy">
+            <strong>创立新小说</strong>
+            <span>输入核心创意，生成世界观、角色、三层大纲与初始章节规划。</span>
+          </span>
+          <span class="card-action">开始连载 <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </button>
+
+        <button class="entry-card" type="button" data-route="library" data-reveal>
+          <span class="card-chapter">SCENE 02</span>
+          <span class="card-icon"><i class="ph ph-books" aria-hidden="true"></i></span>
+          <span class="card-copy">
+            <strong>小说库</strong>
+            <span>继续已有作品，查看设定、大纲、章节正文、剧情记忆与审稿记录。</span>
+          </span>
+          <span class="card-action">打开作品 <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </button>
+
+        <button class="entry-card" type="button" data-route="import" data-reveal>
+          <span class="card-chapter">SCENE 03</span>
+          <span class="card-icon"><i class="ph ph-file-arrow-down" aria-hidden="true"></i></span>
+          <span class="card-copy">
+            <strong>导入 TXT</strong>
+            <span>拆分已有章节，并可让 AI 根据正文反向补全世界观、角色与大纲。</span>
+          </span>
+          <span class="card-action">导入作品 <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </button>
+
+        <button class="entry-card" type="button" data-route="trash" data-reveal>
+          <span class="card-chapter">SCENE 04</span>
+          <span class="card-icon"><i class="ph ph-trash" aria-hidden="true"></i></span>
+          <span class="card-copy">
+            <strong>回收站</strong>
+            <span>恢复误删作品，或确认不再需要后永久清理对应文件。</span>
+          </span>
+          <span class="card-action">管理存档 <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="tagline-section" aria-labelledby="tagline-title" data-tagline>
+      <div class="tagline-label"><span>NEXT CHAPTER</span><span>LONGFORM / ONGOING</span></div>
+      <h2 id="tagline-title">
+        <span class="tagline-word">设定</span><span class="tagline-word">不会散</span><br>
+        <span class="tagline-word">角色</span><span class="tagline-word">不会忘</span><br>
+        <span class="tagline-word">下一章</span><span class="tagline-word">接得住</span>
+      </h2>
+      <i class="ph ph-arrow-down" aria-hidden="true"></i>
+    </section>
+
+    <section class="workflow-section" aria-labelledby="workflow-title">
+      <div class="workflow-heading" data-reveal>
+        <p class="section-kicker">CREATION FLOW</p>
+        <h2 id="workflow-title">四格走完一轮创作</h2>
+      </div>
+      <div class="workflow-grid">
+        <article data-reveal>
+          <span>01</span>
+          <i class="ph ph-compass" aria-hidden="true"></i>
+          <h3>世界与人物</h3>
+          <p>先确定故事规则、人物愿望、冲突关系和长篇结构。</p>
+        </article>
+        <article data-reveal>
+          <span>02</span>
+          <i class="ph ph-list-numbers" aria-hidden="true"></i>
+          <h3>分卷与章节</h3>
+          <p>把主线拆成可执行的篇章、节奏段落与单章目标。</p>
+        </article>
+        <article data-reveal>
+          <span>03</span>
+          <i class="ph ph-pen-nib" aria-hidden="true"></i>
+          <h3>正文生成</h3>
+          <p>结合当前章节目标和前文记忆，生成可持续修改的正文。</p>
+        </article>
+        <article data-reveal>
+          <span>04</span>
+          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <h3>审稿与归档</h3>
+          <p>检查逻辑、节奏和重复表达，把关键变化继续写入剧情圣经。</p>
+        </article>
+      </div>
+    </section>
+    </section>
+
+    <!-- 创立新小说 -->
+    <section class="page" data-page="create" aria-labelledby="create-title">
+      <div class="page-heading">
+        <div>
+          <button class="back-link" type="button" data-route="home"><i class="ph ph-arrow-left" aria-hidden="true"></i>返回首页</button>
+          <p class="page-kicker">新建项目</p>
+          <h1 id="create-title">创立新小说</h1>
+          <p>先写清楚故事的核心创意。系统会以它为基础生成作品档案。</p>
+        </div>
+        <span class="step-indicator"><strong>01</strong><span>/ 02 生成后进入小说详情</span></span>
+      </div>
+
+      <div class="two-column-form">
+        <form class="form-surface" id="create-form">
+          <div class="form-section">
+            <div class="field-group">
+              <label for="novel-title">小说标题 <span>选填</span></label>
+              <input id="novel-title" name="title" type="text" maxlength="60" placeholder="例如：雾港来信">
+              <p>留空时会使用“未命名小说”。</p>
+            </div>
+
+            <div class="field-group">
+              <label for="novel-idea">一句话创意 <span>必填</span></label>
+              <textarea id="novel-idea" name="idea" rows="5" placeholder="例如：每逢大潮，雾港旧码头都会多出一级刻着失踪者姓名的石阶。" required></textarea>
+              <p>建议包含主角、核心冲突和独特规则，生成结果会更稳定。</p>
+            </div>
+          </div>
+
+          <fieldset class="form-section">
+            <legend>小说流派</legend>
+            <div class="genre-grid">
+              <label class="genre-option is-selected">
+                <input type="radio" name="genre" value="urban" checked>
+                <span><i class="ph ph-buildings" aria-hidden="true"></i>都市类</span>
+                <small>异能、系统、职场、校园</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+              <label class="genre-option">
+                <input type="radio" name="genre" value="wuxia">
+                <span><i class="ph ph-sword" aria-hidden="true"></i>武侠类</span>
+                <small>门派、江湖、武林争霸</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+              <label class="genre-option">
+                <input type="radio" name="genre" value="xianxia">
+                <span><i class="ph ph-mountains" aria-hidden="true"></i>仙侠类</span>
+                <small>修真、境界、仙魔之争</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+              <label class="genre-option">
+                <input type="radio" name="genre" value="mystery">
+                <span><i class="ph ph-magnifying-glass" aria-hidden="true"></i>推理悬疑</span>
+                <small>解谜、破案、都市怪谈</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+              <label class="genre-option">
+                <input type="radio" name="genre" value="romance">
+                <span><i class="ph ph-heart" aria-hidden="true"></i>青春恋爱</span>
+                <small>情感发展与人际关系</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+              <label class="genre-option">
+                <input type="radio" name="genre" value="fanfic">
+                <span><i class="ph ph-mask-happy" aria-hidden="true"></i>同人文</span>
+                <small>基于原作摘要展开新故事</small>
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="form-section fanfic-fields" id="fanfic-fields" hidden>
+            <div class="inline-notice">
+              <i class="ph ph-info" aria-hidden="true"></i>
+              <p>同人文只使用你概括的原作名称和设定摘要，不直接复制原作正文。</p>
+            </div>
+            <div class="field-group">
+              <label for="fanfic-title">原作名称</label>
+              <input id="fanfic-title" name="source_title" type="text" maxlength="80" placeholder="例如：某部小说或动漫">
+            </div>
+            <div class="field-group">
+              <label for="fanfic-summary">原作设定摘要</label>
+              <textarea id="fanfic-summary" name="source_summary" rows="4" placeholder="概括希望沿用的世界观、势力关系、时代背景和关键规则。"></textarea>
+            </div>
+          </div>
+
+          <div class="form-status" id="create-status" role="status" hidden></div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit" id="create-submit">
+              <i class="ph ph-sparkle" aria-hidden="true"></i>
+              开始生成
+            </button>
+            <button class="button button-tertiary" type="button" data-route="home">取消</button>
+          </div>
+        </form>
+
+        <aside class="process-aside" aria-labelledby="create-process-title">
+          <div class="aside-heading">
+            <p class="section-kicker">提交后</p>
+            <h2 id="create-process-title">系统会生成什么</h2>
+          </div>
+          <ol class="process-list" id="create-process-list">
+            <li data-create-step="1">
+              <span>01</span>
+              <div><strong>解析创意</strong><p>确定题材、核心冲突和故事基调。</p></div>
+            </li>
+            <li data-create-step="2">
+              <span>02</span>
+              <div><strong>建立作品档案</strong><p>生成世界观、角色卡和篇章大纲。</p></div>
+            </li>
+            <li data-create-step="3">
+              <span>03</span>
+              <div><strong>拆分长篇结构</strong><p>生成节奏段落与章节大纲。</p></div>
+            </li>
+            <li data-create-step="4">
+              <span>04</span>
+              <div><strong>进入小说详情</strong><p>从世界观或章节大纲开始继续创作。</p></div>
+            </li>
+          </ol>
+          <div class="aside-note">
+            <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
+            <p>生成任务由后端异步执行。正式项目中刷新页面后仍会恢复当前进度。</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 导入 TXT -->
+    <section class="page" data-page="import" aria-labelledby="import-page-title">
+      <div class="page-heading">
+        <div>
+          <button class="back-link" type="button" data-route="home"><i class="ph ph-arrow-left" aria-hidden="true"></i>返回首页</button>
+          <p class="page-kicker">反向建档</p>
+          <h1 id="import-page-title">导入 TXT 小说</h1>
+          <p>先按章节标题拆分正文，再决定是否用 AI 从正文中反向补全作品档案。</p>
+        </div>
+      </div>
+
+      <div class="import-layout">
+        <form class="form-surface" id="import-form">
+          <div class="form-row">
+            <div class="field-group">
+              <label for="import-title">小说标题</label>
+              <input id="import-title" type="text" maxlength="60" placeholder="留空时使用“导入的小说”">
+            </div>
+            <div class="field-group">
+              <label for="import-genre">小说流派</label>
+              <select id="import-genre">
+                <option value="urban">都市类</option>
+                <option value="wuxia">武侠类</option>
+                <option value="xianxia">仙侠类</option>
+                <option value="mystery">推理悬疑</option>
+                <option value="romance">青春恋爱</option>
+                <option value="fanfic">同人文</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="import-file">选择 TXT 文件</label>
+            <label class="file-drop" for="import-file" id="file-drop">
+              <input id="import-file" type="file" accept=".txt,text/plain">
+              <span class="file-drop-icon"><i class="ph ph-file-text" aria-hidden="true"></i></span>
+              <span class="file-drop-copy">
+                <strong id="file-name">点击选择本地 TXT 文件</strong>
+                <small>支持“第1章 标题”“第一章 标题”“【第1章 标题】”等常见章节格式</small>
+              </span>
+              <span class="button button-secondary button-sm">选择文件</span>
+            </label>
+          </div>
+
+          <div class="field-group">
+            <label for="import-text">或者直接粘贴全文</label>
+            <textarea id="import-text" rows="12" placeholder="把整本小说 TXT 内容粘贴到这里。导入后会先保留完整正文。"></textarea>
+          </div>
+
+          <label class="toggle-row">
+            <span>
+              <strong>导入后用 AI 反向补全档案</strong>
+              <small>生成世界观、角色卡、篇章节奏、章节大纲和剧情圣经。未配置 Key 时会退回基础导入。</small>
+            </span>
+            <input id="import-reconstruct" type="checkbox" checked>
+            <span class="toggle-control" aria-hidden="true"></span>
+          </label>
+
+          <div class="form-status" id="import-status" role="status" hidden></div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit" id="import-submit">
+              <i class="ph ph-file-arrow-down" aria-hidden="true"></i>
+              拆章并导入
+            </button>
+            <button class="button button-tertiary" type="button" data-route="library">取消</button>
+          </div>
+        </form>
+
+        <aside class="import-aside">
+          <div class="mini-preview">
+            <div class="mini-preview-head">
+              <span class="mini-cover"><i class="ph ph-file-text" aria-hidden="true"></i></span>
+              <div><strong>雾港来信</strong><small>预计拆分为 26 章</small></div>
+            </div>
+            <div class="chapter-line"><span>第1章</span><i></i><small>示例章节</small></div>
+            <div class="chapter-line"><span>第2章</span><i></i><small>示例章节</small></div>
+            <div class="chapter-line"><span>第3章</span><i></i><small>示例章节</small></div>
+            <div class="chapter-line is-muted"><span>...</span><i></i><small>导入后生成</small></div>
+          </div>
+          <div class="aside-note">
+            <i class="ph ph-shield-check" aria-hidden="true"></i>
+            <p>基础导入不依赖 AI。关闭“反向补全档案”时，也会保留正文和自动拆出的章节结构。</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 小说库 -->
+    <section class="page" data-page="library" aria-labelledby="library-title">
+      <div class="page-heading library-heading">
+        <div>
+          <p class="page-kicker">作品管理</p>
+          <h1 id="library-title">小说仓库</h1>
+          <p>所有作品按最近更新时间排列。打开作品后会进入六标签详情页。</p>
+        </div>
+        <div class="heading-actions">
+          <button class="button button-secondary" type="button" data-route="import">
+            <i class="ph ph-file-arrow-down" aria-hidden="true"></i>
+            导入 TXT
+          </button>
+          <button class="button button-primary" type="button" data-route="create">
+            <i class="ph ph-plus" aria-hidden="true"></i>
+            新小说
+          </button>
+        </div>
+      </div>
+
+      <div class="library-toolbar">
+        <label class="search-field">
+          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <span class="sr-only">搜索作品</span>
+          <input id="library-search" type="search" placeholder="搜索标题或创意">
+        </label>
+        <span class="library-count" id="library-count">3 部作品</span>
+      </div>
+
+      <div class="library-grid" id="library-grid">
+        <article class="novel-card" data-title="雾港来信" data-idea="潮汐会带回失踪者留下的声音" data-novel-id="fog00001">
+          <button class="novel-cover cover-fog" type="button" data-open-novel="fog00001">
+            <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=85" alt="">
+            <span class="cover-overlay" aria-hidden="true"></span>
+            <span class="cover-tag">都市异闻</span>
+            <strong>雾港来信</strong>
+            <small>潮汐纪事 · 第一卷</small>
+          </button>
+          <div class="novel-card-body">
+            <div class="card-title-row">
+              <div><h2>雾港来信</h2><span>2026-11-18</span></div>
+              <button class="icon-button card-menu" type="button" data-delete-novel="fog00001" aria-label="移入回收站">
+                <i class="ph ph-trash" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p>潮汐会带回失踪者留下的声音，也会让旧码头多出一级刻着名字的石阶。</p>
+            <div class="novel-meta">
+              <span><i class="ph ph-file-text" aria-hidden="true"></i>18 章正文</span>
+              <span><i class="ph ph-tree-structure" aria-hidden="true"></i>26 章大纲</span>
+              <span><i class="ph ph-clock" aria-hidden="true"></i>8 分钟前</span>
+            </div>
+            <button class="text-link" type="button" data-open-novel="fog00001">打开小说 <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+          </div>
+        </article>
+
+        <article class="novel-card" data-title="山海邮局" data-idea="没有地址的信会被送到地图上不存在的地方" data-novel-id="post0002">
+          <button class="novel-cover cover-post" type="button" data-open-novel="post0002">
+            <img src="https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=800&q=85" alt="">
+            <span class="cover-overlay" aria-hidden="true"></span>
+            <span class="cover-tag">奇幻治愈</span>
+            <strong>山海邮局</strong>
+            <small>没有地址的信</small>
+          </button>
+          <div class="novel-card-body">
+            <div class="card-title-row">
+              <div><h2>山海邮局</h2><span>2026-11-15</span></div>
+              <button class="icon-button card-menu" type="button" data-delete-novel="post0002" aria-label="移入回收站">
+                <i class="ph ph-trash" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p>没有地址的信，会被送到地图上不存在的地方，也会找到早已失联的人。</p>
+            <div class="novel-meta">
+              <span><i class="ph ph-file-text" aria-hidden="true"></i>6 章正文</span>
+              <span><i class="ph ph-tree-structure" aria-hidden="true"></i>16 章大纲</span>
+              <span><i class="ph ph-clock" aria-hidden="true"></i>昨天</span>
+            </div>
+            <button class="text-link" type="button" data-open-novel="post0002">打开小说 <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+          </div>
+        </article>
+
+        <article class="novel-card" data-title="第七码头" data-idea="每个失踪者都曾在同一条码头留下最后的影子" data-novel-id="dock0003">
+          <button class="novel-cover cover-dock" type="button" data-open-novel="dock0003">
+            <img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=85" alt="">
+            <span class="cover-overlay" aria-hidden="true"></span>
+            <span class="cover-tag">犯罪悬疑</span>
+            <strong>第七码头</strong>
+            <small>码头三部曲</small>
+          </button>
+          <div class="novel-card-body">
+            <div class="card-title-row">
+              <div><h2>第七码头</h2><span>2026-11-11</span></div>
+              <button class="icon-button card-menu" type="button" data-delete-novel="dock0003" aria-label="移入回收站">
+                <i class="ph ph-trash" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p>每个失踪者都曾在同一条码头留下最后的影子，但监控里从未出现过他们。</p>
+            <div class="novel-meta">
+              <span><i class="ph ph-file-text" aria-hidden="true"></i>3 章正文</span>
+              <span><i class="ph ph-tree-structure" aria-hidden="true"></i>12 章大纲</span>
+              <span><i class="ph ph-clock" aria-hidden="true"></i>3 天前</span>
+            </div>
+            <button class="text-link" type="button" data-open-novel="dock0003">打开小说 <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+          </div>
+        </article>
+      </div>
+
+      <div class="empty-state" id="library-empty" hidden>
+        <span><i class="ph ph-magnifying-glass" aria-hidden="true"></i></span>
+        <h2>没有匹配的小说</h2>
+        <p>换一个标题或创意关键词试试。</p>
+        <button class="button button-secondary button-sm" type="button" id="clear-library-search">清除搜索</button>
+      </div>
+    </section>
+
+    <!-- 回收站 -->
+    <section class="page" data-page="trash" aria-labelledby="trash-title">
+      <div class="page-heading library-heading">
+        <div>
+          <p class="page-kicker">删除管理</p>
+          <h1 id="trash-title">小说回收站</h1>
+          <p>删除小说时会先保留一份 JSON 备份。这里可以恢复作品，也可以执行不可撤销的永久删除。</p>
+        </div>
+        <button class="button button-secondary" type="button" data-route="library">
+          <i class="ph ph-arrow-left" aria-hidden="true"></i>
+          返回小说库
+        </button>
+      </div>
+
+      <div class="trash-list" id="trash-list">
+        <article class="trash-item" data-trash-item data-trash-id="lost0004" data-title="失物招领处" data-genre="都市奇幻" data-idea="只接收来自未来二十四小时的遗失物，但每件物品都会附带一名陌生人的死亡时间。">
+          <span class="trash-icon"><i class="ph ph-file-x" aria-hidden="true"></i></span>
+          <div class="trash-copy">
+            <div><h2>失物招领处</h2><span>删除于 2026-11-16 21:42</span></div>
+            <p>只接收来自未来二十四小时的遗失物，但每件物品都会附带一名陌生人的死亡时间。</p>
+            <small>1,280 字 · 3 个角色 · 回收站文件已保留</small>
+          </div>
+          <div class="trash-actions">
+            <button class="button button-secondary button-sm" type="button" data-restore-novel>恢复</button>
+            <button class="button button-danger-subtle button-sm" type="button" data-purge-novel>永久删除</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="empty-state" id="trash-empty" hidden>
+        <span><i class="ph ph-trash" aria-hidden="true"></i></span>
+        <h2>回收站为空</h2>
+        <p>删除的作品会先出现在这里。</p>
+        <button class="button button-secondary button-sm" type="button" data-route="library">返回小说库</button>
+      </div>
+    </section>
+
+    <!-- 小说详情 -->
+    <section class="page" data-page="novel" aria-labelledby="novel-detail-title">
+      <div class="novel-topbar">
+        <div>
+          <button class="back-link" type="button" data-route="library"><i class="ph ph-arrow-left" aria-hidden="true"></i>返回小说库</button>
+          <div class="novel-title-row">
+            <div>
+              <p class="page-kicker">都市异闻 · 连载中</p>
+              <h1 id="novel-detail-title">雾港来信</h1>
+              <p>最后更新于 2026-11-18 · 18 章正文 · 4.8 万字</p>
+            </div>
+            <span class="save-indicator"><i class="ph ph-check-circle" aria-hidden="true"></i>已保存</span>
+          </div>
+        </div>
+        <div class="novel-actions">
+          <button class="button button-tertiary danger-text" type="button" id="delete-novel-open">
+            <i class="ph ph-trash" aria-hidden="true"></i>
+            删除
+          </button>
+          <button class="button button-secondary" type="button" id="download-novel">
+            <i class="ph ph-download-simple" aria-hidden="true"></i>
+            下载 TXT
+          </button>
+          <button class="button button-secondary" type="button" id="assist-open">
+            <i class="ph ph-sparkle" aria-hidden="true"></i>
+            AI 辅助更新
+          </button>
+          <button class="button button-secondary" type="button" id="edit-cancel" hidden>
+            取消编辑
+          </button>
+          <button class="button button-primary" type="button" id="edit-toggle">
+            <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+            编辑
+          </button>
+        </div>
+      </div>
+
+      <div class="novel-layout">
+        <aside class="detail-sidebar" aria-label="小说详情导航">
+          <button class="detail-nav is-active" type="button" data-detail-tab="world">
+            <i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i>
+            <span><strong>世界观</strong><small>规则、地点、势力</small></span>
+          </button>
+          <button class="detail-nav" type="button" data-detail-tab="characters">
+            <i class="ph ph-users-three" aria-hidden="true"></i>
+            <span><strong>角色卡</strong><small>人物、动机、成长弧线</small></span>
+          </button>
+          <button class="detail-nav" type="button" data-detail-tab="outline">
+            <i class="ph ph-tree-structure" aria-hidden="true"></i>
+            <span><strong>大纲</strong><small>篇章、节奏、章节</small></span>
+          </button>
+          <button class="detail-nav" type="button" data-detail-tab="bible">
+            <i class="ph ph-book-bookmark" aria-hidden="true"></i>
+            <span><strong>剧情圣经</strong><small>长期记忆与连续性</small></span>
+          </button>
+          <button class="detail-nav" type="button" data-detail-tab="chapters">
+            <i class="ph ph-book-open-text" aria-hidden="true"></i>
+            <span><strong>章节</strong><small>生成的正文与下载</small></span>
+          </button>
+          <button class="detail-nav" type="button" data-detail-tab="audit">
+            <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+            <span><strong>审稿</strong><small>问题、评分、修订建议</small></span>
+          </button>
+          <div class="sidebar-note">
+            <i class="ph ph-info" aria-hidden="true"></i>
+            <p>六个标签是同一个小说详情页，不是六个独立一级页面。</p>
+          </div>
+        </aside>
+
+        <div class="detail-content">
+          <!-- 世界观 -->
+          <section class="detail-view is-active" data-detail-view="world" aria-labelledby="world-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">作品基础档案</p><h2 id="world-title">世界观</h2></div>
+              <span class="badge badge-teal"><i class="ph ph-database" aria-hidden="true"></i>已生成</span>
+            </div>
+            <div class="world-lead">
+              <p>“潮汐会带回失踪者留下的声音，也会让旧码头在退潮后多出一级刻着名字的石阶。”</p>
+              <span>核心设定</span>
+            </div>
+            <div class="field-grid">
+              <article class="data-block">
+                <span>名称</span>
+                <strong>潮汐纪事</strong>
+              </article>
+              <article class="data-block">
+                <span>题材</span>
+                <strong>都市异闻 · 慢悬疑</strong>
+              </article>
+              <article class="data-block wide">
+                <span>世界规则</span>
+                <p>只有未寄出的留言会依附在潮声里。每次大潮，港口会短暂连接到一个与失踪事件有关的“回声空间”。</p>
+              </article>
+              <article class="data-block wide">
+                <span>力量体系</span>
+                <p>潮汐感知者可以听见残留情绪，但无法主动改变水位；过度感知会造成短期记忆混乱。</p>
+              </article>
+              <article class="data-block">
+                <span>风格基调</span>
+                <strong>潮湿、克制、缓慢逼近真相</strong>
+              </article>
+              <article class="data-block">
+                <span>核心地点</span>
+                <div class="tag-row"><span>旧码头</span><span>雾港钟楼</span><span>残响电台</span></div>
+              </article>
+            </div>
+            <div class="editable-fields" aria-label="世界观编辑表单" hidden>
+              <div class="field-group"><label>名称</label><input type="text" value="潮汐纪事"></div>
+              <div class="field-group"><label>核心设定</label><textarea rows="3">潮汐会带回失踪者留下的声音，旧码头会出现刻着名字的石阶。</textarea></div>
+              <div class="field-group"><label>世界规则</label><textarea rows="3">只有未寄出的留言会依附在潮声里。</textarea></div>
+              <div class="field-group"><label>风格基调</label><input type="text" value="潮湿、克制、缓慢逼近真相"></div>
+            </div>
+          </section>
+
+          <!-- 角色卡 -->
+          <section class="detail-view" data-detail-view="characters" aria-labelledby="characters-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">人物档案</p><h2 id="characters-title">角色卡</h2></div>
+              <span class="count-label">3 个角色</span>
+            </div>
+            <div class="character-grid">
+              <article class="character-card is-lead">
+                <div class="character-head">
+                  <span class="avatar avatar-lg person-main">夏</span>
+                  <div><h3>林见夏</h3><p>主角 · 潮汐感知者</p></div>
+                  <span class="badge badge-live">视角人物</span>
+                </div>
+                <div class="character-quote">“如果声音能留在潮水里，那它一定也能找到回家的路。”</div>
+                <dl class="character-facts">
+                  <div><dt>动机</dt><dd>查明母亲失踪与港口钟停摆之间的关系。</dd></div>
+                  <div><dt>能力</dt><dd>听见潮汐残留的回声，但尚不能改变水位。</dd></div>
+                  <div><dt>缺陷</dt><dd>过度相信声音，面对现实证据时会本能回避。</dd></div>
+                  <div><dt>成长弧线</dt><dd>从追问他人的秘密，转向承认自己记忆中的空白。</dd></div>
+                </dl>
+              </article>
+              <article class="character-card">
+                <div class="character-head">
+                  <span class="avatar avatar-lg person-sub">砚</span>
+                  <div><h3>周砚</h3><p>关键关系人 · 旧电台修复师</p></div>
+                </div>
+                <dl class="character-facts">
+                  <div><dt>性格</dt><dd>冷静、寡言，习惯用技术问题代替情感回应。</dd></div>
+                  <div><dt>秘密</dt><dd>比林见夏更早知道潮汐回声的存在。</dd></div>
+                  <div><dt>关系</dt><dd>互相隐瞒的盟友，信任正在逐步松动。</dd></div>
+                </dl>
+              </article>
+              <article class="character-card">
+                <div class="character-head">
+                  <span class="avatar avatar-lg person-third">许</span>
+                  <div><h3>许渡</h3><p>港务档案员 · 信息提供者</p></div>
+                </div>
+                <dl class="character-facts">
+                  <div><dt>背景</dt><dd>管理旧港档案，熟悉历年失踪记录。</dd></div>
+                  <div><dt>动机</dt><dd>希望证明父亲并非主动离家。</dd></div>
+                  <div><dt>缺陷</dt><dd>对档案有近乎偏执的信任。</dd></div>
+                </dl>
+              </article>
+            </div>
+            <div class="character-edit-actions" hidden>
+              <button class="button button-secondary button-sm" type="button" data-toast="原型中展示新增角色卡入口"><i class="ph ph-user-plus" aria-hidden="true"></i>添加角色</button>
+            </div>
+          </section>
+
+          <!-- 大纲 -->
+          <section class="detail-view" data-detail-view="outline" aria-labelledby="outline-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">长篇结构</p><h2 id="outline-title">大纲</h2></div>
+              <div class="heading-actions">
+                <label class="compact-field"><span>续写数量</span><input id="expand-count" type="number" value="5" min="1" max="20"></label>
+                <button class="button button-primary button-sm" type="button" id="expand-outline">
+                  <i class="ph ph-sparkle" aria-hidden="true"></i>
+                  AI 续写章节大纲
+                </button>
+              </div>
+            </div>
+
+            <div class="segmented-control" role="tablist" aria-label="大纲类型">
+              <button class="is-active" type="button" role="tab" aria-selected="true" data-outline-tab="volume">篇章大纲</button>
+              <button type="button" role="tab" aria-selected="false" data-outline-tab="pacing">节奏段落</button>
+              <button type="button" role="tab" aria-selected="false" data-outline-tab="chapter">章节大纲</button>
+            </div>
+
+            <div class="outline-panel is-active" data-outline-view="volume">
+              <article class="volume-card">
+                <div class="volume-head">
+                  <span class="volume-number">第一卷</span>
+                  <div><h3>潮痕</h3><p>第 1 至 26 章 · 第一幕到第二幕</p></div>
+                  <span class="badge badge-live">正在使用</span>
+                </div>
+                <div class="volume-detail-grid">
+                  <div><span>整体走向</span><p>林见夏从调查一条匿名留言，逐步确认母亲失踪与旧码头回声空间有关。</p></div>
+                  <div><span>核心矛盾</span><p>她越接近真相，越无法判断哪些记忆属于自己。</p></div>
+                  <div><span>高潮</span><p>停摆的港口钟重新响起，所有人同时听见一个不该存在的名字。</p></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="outline-panel" data-outline-view="pacing">
+              <div class="timeline-list">
+                <article>
+                  <span class="timeline-dot"></span>
+                  <div><h3>开局压迫 · 第 1 至 5 章</h3><p>用匿名留言和退潮石阶建立核心悬念，让主角主动进入调查。</p><small>张力目标：好奇与不安交替上升</small></div>
+                </article>
+                <article>
+                  <span class="timeline-dot"></span>
+                  <div><h3>信息升级 · 第 6 至 14 章</h3><p>旧电台、港务档案和钟楼逐步连接，周砚的秘密开始露出破绽。</p><small>张力目标：人际关系与超自然风险同时加压</small></div>
+                </article>
+                <article>
+                  <span class="timeline-dot"></span>
+                  <div><h3>第一次高潮 · 第 15 至 20 章</h3><p>回声空间短暂开启，主角获得关键证词，也失去一段确定属于自己的记忆。</p><small>张力目标：真相第一次出现不可逆代价</small></div>
+                </article>
+              </div>
+            </div>
+
+            <div class="outline-panel" data-outline-view="chapter">
+              <div class="outline-toolbar">
+                <div>
+                  <strong>26 章大纲</strong>
+                  <span>18 章已有正文</span>
+                </div>
+                <div class="heading-actions">
+                  <button class="button button-secondary button-sm" type="button" data-toast="原型中展示手动新增空白章节入口">
+                    <i class="ph ph-plus" aria-hidden="true"></i>
+                    手动添加
+                  </button>
+                  <button class="button button-primary button-sm" type="button" id="batch-generate">
+                    <i class="ph ph-play" aria-hidden="true"></i>
+                    生成剩余章节
+                  </button>
+                </div>
+              </div>
+              <div class="generation-progress" id="generation-progress" hidden>
+                <div><span>正在生成章节</span><strong id="generation-progress-label">准备中</strong></div>
+                <div class="progress-track"><span id="generation-progress-bar"></span></div>
+              </div>
+              <div class="chapter-outline-list">
+                <article class="outline-row">
+                  <span class="row-number">17</span>
+                  <div><h3>退潮之前</h3><p>林见夏在旧码头发现第十七级台阶，周砚第一次承认自己听过同样的潮声。</p></div>
+                  <span class="badge badge-live">正文已生成</span>
+                  <button class="icon-button" type="button" data-toast="打开第 17 章操作菜单" aria-label="章节操作"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+                </article>
+                <article class="outline-row is-current">
+                  <span class="row-number">18</span>
+                  <div><h3>潮汐之下</h3><p>停摆的钟声在凌晨两点响起，石阶上出现林见夏自己的名字。</p></div>
+                  <span class="badge badge-warning">正在创作</span>
+                  <button class="icon-button" type="button" data-toast="打开第 18 章操作菜单" aria-label="章节操作"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+                </article>
+                <article class="outline-row is-muted">
+                  <span class="row-number">19</span>
+                  <div><h3>回声走廊</h3><p>雾中陌生人引导主角进入旧电台背后的回声走廊。</p></div>
+                  <span class="badge">未生成</span>
+                  <button class="icon-button" type="button" data-toast="打开第 19 章操作菜单" aria-label="章节操作"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- 剧情圣经 -->
+          <section class="detail-view" data-detail-view="bible" aria-labelledby="bible-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">长期记忆</p><h2 id="bible-title">剧情圣经</h2></div>
+              <span class="badge badge-teal"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>随章节更新</span>
+            </div>
+
+            <div class="bible-summary">
+              <span>上一章摘要</span>
+              <p>林见夏在退潮后的旧码头找到刻有失踪者姓名的石阶，周砚承认自己早已听过相同潮声。两人决定在钟楼停摆前重新打开旧电台。</p>
+            </div>
+
+            <div class="bible-grid">
+              <article class="bible-block">
+                <div class="block-heading"><span class="block-icon icon-teal"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i></span><div><h3>时间线</h3><span>7 条事件</span></div></div>
+                <ol class="compact-timeline">
+                  <li><time>第 1 章</time><p>匿名留言第一次出现在旧电台。</p></li>
+                  <li><time>第 8 章</time><p>林见夏确认母亲失踪前曾到过钟楼。</p></li>
+                  <li><time>第 18 章</time><p>港口钟停摆，石阶出现主角姓名。</p></li>
+                </ol>
+              </article>
+              <article class="bible-block">
+                <div class="block-heading"><span class="block-icon icon-accent"><i class="ph ph-user-focus" aria-hidden="true"></i></span><div><h3>人物状态</h3><span>3 条记录</span></div></div>
+                <div class="state-list">
+                  <div><span class="avatar avatar-sm person-main">夏</span><p><strong>林见夏</strong>疲惫、警觉，对周砚的信任开始动摇。</p></div>
+                  <div><span class="avatar avatar-sm person-sub">砚</span><p><strong>周砚</strong>隐瞒了旧电台的早期录音，但仍协助调查。</p></div>
+                </div>
+              </article>
+              <article class="bible-block">
+                <div class="block-heading"><span class="block-icon icon-warning"><i class="ph ph-bezier-curve" aria-hidden="true"></i></span><div><h3>未回收伏笔</h3><span>3 项</span></div></div>
+                <ul class="thread-list">
+                  <li><span>停摆的港口钟</span><small>第 1 章出现</small><i class="ph ph-warning-circle" aria-hidden="true"></i></li>
+                  <li><span>母亲的第七通电话</span><small>录音结尾存在倒放片段</small><i class="ph ph-warning-circle" aria-hidden="true"></i></li>
+                  <li><span>铜钥匙的温度</span><small>第 12 章后持续发烫</small><i class="ph ph-warning-circle" aria-hidden="true"></i></li>
+                </ul>
+              </article>
+              <article class="bible-block">
+                <div class="block-heading"><span class="block-icon icon-muted"><i class="ph ph-map-pin" aria-hidden="true"></i></span><div><h3>地点与物件</h3><span>8 条记录</span></div></div>
+                <div class="tag-row large">
+                  <span>旧码头 · 退潮异常</span>
+                  <span>雾港钟楼 · 时间异常</span>
+                  <span>残响电台 · 声音留存</span>
+                  <span>铜钥匙 · 温度异常</span>
+                </div>
+              </article>
+            </div>
+
+            <div class="memory-table">
+              <div class="memory-row memory-head"><span>章节事件账本</span><span>角色</span><span>状态</span></div>
+              <div class="memory-row"><span>第 18 章 · 石阶出现姓名</span><span>林见夏 / 周砚</span><span class="badge badge-warning">新增连续性风险</span></div>
+              <div class="memory-row"><span>第 17 章 · 确认第十七级台阶</span><span>林见夏</span><span class="badge badge-live">已确认</span></div>
+            </div>
+          </section>
+
+          <!-- 章节正文 -->
+          <section class="detail-view" data-detail-view="chapters" aria-labelledby="chapters-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">生成结果</p><h2 id="chapters-title">章节正文</h2></div>
+              <div class="heading-actions">
+                <button class="button button-secondary button-sm" type="button" id="chapter-select-mode">
+                  <i class="ph ph-check-square" aria-hidden="true"></i>
+                  多选删除
+                </button>
+              </div>
+            </div>
+
+            <div class="chapter-list">
+              <article class="chapter-card">
+                <div class="chapter-card-head">
+                  <span class="row-number">01</span>
+                  <div><h3>退潮之前</h3><small>2,940 字 · 11月17日</small></div>
+                  <span class="badge badge-live">已生成</span>
+                  <button class="icon-button" type="button" data-toast="下载第 1 章 TXT" aria-label="下载章节"><i class="ph ph-download-simple" aria-hidden="true"></i></button>
+                </div>
+                <p class="chapter-excerpt">港口的钟在凌晨两点停了。林见夏站在旧码头的尽头，潮水正从生锈的系船柱之间缓慢退回海里。平时被海水盖住的石阶露出来，每一级都刻着一个陌生的名字。</p>
+                <button class="text-link compact" type="button" data-expand-chapter>展开全文 <i class="ph ph-caret-down" aria-hidden="true"></i></button>
+              </article>
+              <article class="chapter-card is-empty">
+                <div class="chapter-card-head">
+                  <span class="row-number">02</span>
+                  <div><h3>潮汐之下</h3><small>尚未生成正文</small></div>
+                  <span class="badge">待生成</span>
+                  <button class="button button-primary button-sm" type="button" id="single-generate">
+                    <i class="ph ph-play" aria-hidden="true"></i>
+                    生成本章
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- 审稿 -->
+          <section class="detail-view" data-detail-view="audit" aria-labelledby="audit-title">
+            <div class="detail-heading">
+              <div><p class="section-kicker">全书检查</p><h2 id="audit-title">小说审稿</h2></div>
+              <div class="heading-actions">
+                <label class="compact-select">
+                  <span class="sr-only">选择审稿重点</span>
+                  <select id="audit-focus">
+                    <option value="all">全部检查</option>
+                    <option value="conflict">冲突优先</option>
+                    <option value="duplicate">重复优先</option>
+                    <option value="outline">大纲关联</option>
+                  </select>
+                </label>
+                <button class="button button-primary button-sm" type="button" id="run-audit">
+                  <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                  开始审稿
+                </button>
+              </div>
+            </div>
+
+            <div class="audit-overview">
+              <div class="score-ring"><span>82<small>/100</small></span></div>
+              <div>
+                <span class="section-kicker">最近一次审稿</span>
+                <h3>整体设定一致，仍有 3 个问题需要确认</h3>
+                <p>主要风险集中在章节连续性、能力边界和地点层级。建议先处理高严重度问题，再根据报告更新大纲。</p>
+              </div>
+              <button class="button button-secondary button-sm" type="button" id="apply-audit">
+                <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+                根据审稿更新大纲
+              </button>
+            </div>
+
+            <div class="issue-list">
+              <article class="issue-card severity-high">
+                <div class="issue-head">
+                  <span class="severity-label">高</span>
+                  <div><h3>“铜钥匙”的温度描述与第 12 章冲突</h3><span>连续性 · 第 12、18 章</span></div>
+                  <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                </div>
+                <p>第 12 章写明钥匙离开旧码头后会持续发烫，本章却写为“不再发烫”。建议补充耗尽或失效的原因。</p>
+              </article>
+              <article class="issue-card severity-medium">
+                <div class="issue-head">
+                  <span class="severity-label">中</span>
+                  <div><h3>林见夏的潮汐感知提前出现</h3><span>角色能力 · 第 18、20 章</span></div>
+                  <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                </div>
+                <p>角色能力表记录第一次主动感知发生在第 20 章。可将当前场景改为被动听见，保留后续升级空间。</p>
+              </article>
+              <article class="issue-card severity-low">
+                <div class="issue-head">
+                  <span class="severity-label">低</span>
+                  <div><h3>旧码头石阶层级需要确认</h3><span>地点设定 · 第 18 章</span></div>
+                  <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                </div>
+                <p>地点设定记录退潮后应出现 14 级台阶。本章写为 17 级，可保留为异常信号，但需要同步更新剧情圣经。</p>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>页面结构与现有项目路由保持一致</span>
+    <span>已接入本地小说库、创作与审稿接口</span>
+  </footer>
+
+  <!-- 移动导航 -->
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav aria-label="移动端主导航">
+      <button type="button" data-route="home"><i class="ph ph-house" aria-hidden="true"></i><span>首页</span></button>
+      <button type="button" data-route="library"><i class="ph ph-books" aria-hidden="true"></i><span>小说库</span></button>
+      <button type="button" data-route="import"><i class="ph ph-file-arrow-down" aria-hidden="true"></i><span>导入 TXT</span></button>
+      <button type="button" data-route="trash"><i class="ph ph-trash" aria-hidden="true"></i><span>回收站</span></button>
+    </nav>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-backdrop" id="settings-modal" hidden>
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-head">
+        <div><p class="section-kicker">请求级配置</p><h2 id="settings-title">API 设置</h2></div>
+        <button class="modal-close" type="button" data-close-modal="settings-modal" aria-label="关闭设置"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label for="provider">API 提供商</label>
+          <select id="provider">
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="api-key">API Key</label>
+          <input id="api-key" type="password" autocomplete="off" placeholder="sk-...">
+          <p>仅保存在当前浏览器，并随生成请求发送。</p>
+        </div>
+        <div class="form-row">
+          <div class="field-group">
+            <label for="model">模型</label>
+            <input id="model" type="text" placeholder="gpt-4o-mini">
+          </div>
+          <div class="field-group">
+            <label for="base-url">API Base URL</label>
+            <input id="base-url" type="url" placeholder="https://api.openai.com/v1">
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button button-secondary" type="button" data-close-modal="settings-modal">取消</button>
+        <button class="button button-primary" type="button" id="save-settings">保存设置</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- AI 辅助更新 -->
+  <div class="modal-backdrop" id="assist-modal" hidden>
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="assist-title">
+      <div class="modal-head">
+        <div><p class="section-kicker">按方向修改</p><h2 id="assist-title">AI 辅助更新</h2></div>
+        <button class="modal-close" type="button" data-close-modal="assist-modal" aria-label="关闭"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label for="assist-target">更新范围</label>
+          <select id="assist-target">
+            <option value="all">全部核心设定</option>
+            <option value="world">世界观</option>
+            <option value="characters">修改角色卡</option>
+            <option value="characters_new">新增角色卡</option>
+            <option value="outline">修改篇章、节奏和章节大纲</option>
+            <option value="volume_new">新增篇章大纲</option>
+            <option value="outline_new">新增章节大纲</option>
+            <option value="bible">剧情圣经</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="assist-instructions">修改方向</label>
+          <textarea id="assist-instructions" rows="5" placeholder="例如：新增一个隐藏反派角色；让世界观更悬疑；重做前三章节奏。"></textarea>
+          <p>写“新增”时更倾向追加，写“重做”或“替换”时更倾向覆盖对应部分。</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button button-secondary" type="button" data-close-modal="assist-modal">取消</button>
+        <button class="button button-primary" type="button" id="assist-submit">
+          <i class="ph ph-sparkle" aria-hidden="true"></i>
+          开始更新
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- 删除确认 -->
+  <div class="modal-backdrop" id="confirm-modal" hidden>
+    <section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-copy">
+      <span class="confirm-icon"><i class="ph ph-trash" aria-hidden="true"></i></span>
+      <h2 id="confirm-title">移入回收站</h2>
+      <p id="confirm-copy">这篇小说会从小说库移入回收站，之后仍可恢复。</p>
+      <div class="modal-actions">
+        <button class="button button-secondary" type="button" data-close-modal="confirm-modal">取消</button>
+        <button class="button button-danger" type="button" id="confirm-delete">确认删除</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-region" aria-live="polite">
+    <div class="toast" id="toast" hidden><i class="ph ph-check-circle" aria-hidden="true"></i><span></span></div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
